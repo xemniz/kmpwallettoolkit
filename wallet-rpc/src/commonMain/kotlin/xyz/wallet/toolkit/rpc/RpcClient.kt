@@ -47,6 +47,12 @@ class RpcClient(
     }
 
     private suspend fun call(method: String, vararg params: JsonElement): String {
+        val result = callRaw(method, *params)
+            ?: throw RpcException(code = -1, message = "Missing RPC result")
+        return result.jsonPrimitive.content
+    }
+
+    private suspend fun callRaw(method: String, vararg params: JsonElement): JsonElement? {
         val request = JsonRpcRequest(method = method, params = params.toList())
         val response: JsonRpcResponse<JsonElement> = httpClient.post(baseUrl) {
             contentType(ContentType.Application.Json)
@@ -57,8 +63,7 @@ class RpcClient(
             throw RpcException(code = err.code, message = err.message)
         }
 
-        val result = response.result ?: throw RpcException(code = -1, message = "Missing RPC result")
-        return result.jsonPrimitive.content
+        return response.result
     }
 }
 
