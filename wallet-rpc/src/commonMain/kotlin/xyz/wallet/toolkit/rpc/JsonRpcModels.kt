@@ -37,3 +37,26 @@ data class RpcCall(
     val data: String? = null,
 )
 
+/**
+ * Decoded JSON-RPC `eth_getTransactionReceipt` result. Decoding is deliberately
+ * lenient (`ignoreUnknownKeys = true` on the receipt decode path) because
+ * receipts are the most forward-compatibility-sensitive surface — real nodes
+ * add fields over time (EIP-1559 `effectiveGasPrice`, EIP-2718 `type`,
+ * EIP-4844 `blobGasUsed`) and we must not break decoding when they show up.
+ */
+@Serializable
+data class TransactionReceipt(
+    val transactionHash: String,
+    val transactionIndex: String,
+    val blockHash: String,
+    val blockNumber: String,
+    val from: String,
+    val to: String? = null,
+    val contractAddress: String? = null,
+    val gasUsed: String,
+    val cumulativeGasUsed: String,
+    val status: String,
+    val logsBloom: String,
+    val logs: List<JsonElement> = emptyList(),
+)
+

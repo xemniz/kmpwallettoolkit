@@ -10,6 +10,7 @@ import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.jsonPrimitive
@@ -19,6 +20,13 @@ class RpcClient(
     private val httpClient: HttpClient,
     private val json: Json = Json,
 ) {
+    // Lenient decoder used for receipts. Receipts are the most forward-compat-
+    // sensitive surface (EIP-1559 effectiveGasPrice, EIP-2718 type, EIP-4844
+    // blobGasUsed, etc.), so unknown fields must not break decoding.
+    private val lenientJson: Json =
+        if (json.configuration.ignoreUnknownKeys) json
+        else Json(from = json) { ignoreUnknownKeys = true }
+
     companion object {
         fun withDefaults(baseUrl: String, json: Json = Json): RpcClient {
             val httpClient = HttpClient {
@@ -44,6 +52,13 @@ class RpcClient(
 
     suspend fun sendRawTransaction(rawTransaction: String): String {
         return call("eth_sendRawTransaction", JsonPrimitive(rawTransaction))
+    }
+
+    suspend fun getTransactionReceipt(txHash: String): TransactionReceipt? {
+        val raw = callRaw("eth_getTransactionReceipt", JsonPrimitive(txHash))
+            ?: return null
+        if (raw is JsonNull) return null
+        return lenientJson.decodeFromJsonElement(TransactionReceipt.serializer(), raw)
     }
 
     private suspend fun call(method: String, vararg params: JsonElement): String {
