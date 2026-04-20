@@ -10,3 +10,7 @@ fun EvmTransaction.toSigningPayload(json: Json = Json): ByteArray {
     return json.encodeToString(this).encodeToByteArray()
 }
 
+fun Eip1559Transaction.toSigningPayload(json: Json = Json): ByteArray {
+    return json.encodeToString(this).encodeToByteArray()
+}
+
