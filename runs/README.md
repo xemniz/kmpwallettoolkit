@@ -10,7 +10,6 @@ Copy it. Don't try to normalize later.
 
 ## Rules
 
-- **Wall clock:** note start and stop in 24h local time. Don't estimate.
 - **Tokens:** snapshot at end of run — use the session's usage summary. One number is fine.
 - **Interventions:** every single time you typed into the agent to course-correct, clarify, or unblock. If you are deciding whether it "counts", it counts. This is the key signal.
 - **Rework rate:** after the agent says it's done, count lines-changed-by-you-in-review / lines-changed-by-agent. Approximate with `git diff --stat` at the commit boundary. One digit of precision.

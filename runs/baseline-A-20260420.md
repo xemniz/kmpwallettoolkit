@@ -6,19 +6,6 @@
 **Worktrees:** <none | A=<path>, B=<path>, ...>
 **Concurrency:** <sequential | N tmux panes | Agent Teams>
 
-## Timing
-
-| Marker                      | Time (local 24h) | Notes |
-|-----------------------------|------------------|-------|
-| Start of planning           |                  |       |
-| Plan approved               |                  |       |
-| First commit by implementer |                  |       |
-| Implementer declared done   |                  |       |
-| Reviewer declared done      |                  |       |
-| PR-ready (green on CI gate) |                  |       |
-
-**Total wall clock (start → PR-ready):** <hh:mm>
-
 ## Token usage
 
 | Agent              | Tokens  | Notes |
