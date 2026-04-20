@@ -61,6 +61,14 @@ class RpcClient(
         return lenientJson.decodeFromJsonElement(TransactionReceipt.serializer(), raw)
     }
 
+    suspend fun ethCall(call: RpcCall, blockTag: String = "latest"): String {
+        return call("eth_call", json.encodeToJsonElement(call), JsonPrimitive(blockTag))
+    }
+
+    suspend fun getCode(address: String, blockTag: String = "latest"): String {
+        return call("eth_getCode", JsonPrimitive(address), JsonPrimitive(blockTag))
+    }
+
     private suspend fun call(method: String, vararg params: JsonElement): String {
         val result = callRaw(method, *params)
             ?: throw RpcException(code = -1, message = "Missing RPC result")
