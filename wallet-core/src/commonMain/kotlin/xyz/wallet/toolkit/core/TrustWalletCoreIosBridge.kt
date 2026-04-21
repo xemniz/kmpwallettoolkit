@@ -63,11 +63,14 @@ object TrustWalletCoreRuntime {
         iosAdapter = null
     }
 
-    internal fun requireIosAdapter(): TrustWalletCoreIosAdapter {
+    internal fun requireIosAdapter(method: String? = null): TrustWalletCoreIosAdapter {
         return iosAdapter ?: throw NotImplementedError(
-            "Trust Wallet Core iOS bridge is not configured. " +
-                "Install an adapter via TrustWalletCoreRuntime.installIosAdapter(...) " +
-                "from your iOS host before using TrustWalletCoreWalletEngine.",
+            buildString {
+                append("Trust Wallet Core native bridge is not available on iOS: ")
+                append("install an adapter via TrustWalletCoreRuntime.installIosAdapter(...) ")
+                append("from your iOS host before using TrustWalletCoreWalletEngine.")
+                if (method != null) append(" (method=$method)")
+            },
         )
     }
 }
