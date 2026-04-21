@@ -18,4 +18,16 @@ actual class TrustWalletCoreWalletEngine actual constructor() : WalletEngine {
             transaction = transaction,
         )
     }
+
+    override fun signEip1559(
+        mnemonic: String,
+        chain: SupportedChain,
+        signingPayloadJson: ByteArray,
+    ): ByteArray {
+        return TrustWalletCoreNativeBridge.signEip1559(
+            mnemonic = mnemonic,
+            chain = chain,
+            signingPayloadJson = signingPayloadJson,
+        )
+    }
 }

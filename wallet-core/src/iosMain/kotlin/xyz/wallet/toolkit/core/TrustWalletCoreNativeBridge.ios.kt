@@ -34,4 +34,18 @@ actual object TrustWalletCoreNativeBridge {
 
         return hex.hexToByteArray()
     }
+
+    actual fun signEip1559(
+        mnemonic: String,
+        chain: SupportedChain,
+        signingPayloadJson: ByteArray,
+    ): ByteArray {
+        val adapter = TrustWalletCoreRuntime.requireIosAdapter(method = "signEip1559")
+        val hex = adapter.signEip1559(
+            mnemonic = mnemonic,
+            chain = chain,
+            signingPayloadJson = signingPayloadJson,
+        )
+        return hex.hexToByteArray()
+    }
 }

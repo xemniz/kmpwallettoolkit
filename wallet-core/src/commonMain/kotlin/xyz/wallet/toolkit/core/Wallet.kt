@@ -10,6 +10,20 @@ class Wallet private constructor(
         return engine.signTransaction(mnemonic = mnemonic, chain = chain, transaction = transaction)
     }
 
+    /**
+     * Sign an EIP-1559 (type-2) transaction already serialized via
+     * `wallet-evm`'s `Eip1559Transaction.toSigningPayload()`. The extension
+     * `Wallet.signEip1559Transaction(chain, tx)` in wallet-evm is the typed
+     * entry point; this method is the module-boundary seam it delegates to.
+     */
+    fun signEip1559Transaction(chain: SupportedChain, signingPayloadJson: ByteArray): ByteArray {
+        return engine.signEip1559(
+            mnemonic = mnemonic,
+            chain = chain,
+            signingPayloadJson = signingPayloadJson,
+        )
+    }
+
     companion object {
         fun create(engine: WalletEngine = UnsupportedWalletEngine()): Wallet {
             val mnemonic = engine.createMnemonic()

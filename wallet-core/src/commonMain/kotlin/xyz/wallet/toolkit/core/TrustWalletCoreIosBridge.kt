@@ -20,6 +20,26 @@ interface TrustWalletCoreIosAdapter {
         chain: SupportedChain,
         transaction: TrustWalletCoreEvmSigningRequest,
     ): String
+
+    /**
+     * Sign an EIP-1559 (type-2) transaction and return the raw signed bytes as a
+     * hex string. The payload is the canonical JSON emitted by wallet-evm's
+     * `Eip1559Transaction.toSigningPayload()`; the host is responsible for
+     * translating it into Trust Wallet Core's `Ethereum.SigningInput`.
+     * Both prefixed (`0x...`) and non-prefixed hex are accepted.
+     *
+     * Default implementation throws; iOS hosts that want EIP-1559 support override it.
+     */
+    fun signEip1559(
+        mnemonic: String,
+        chain: SupportedChain,
+        signingPayloadJson: ByteArray,
+    ): String {
+        throw NotImplementedError(
+            "TrustWalletCoreIosAdapter does not implement signEip1559. " +
+                "Override this method in the iOS host adapter to enable EIP-1559 signing.",
+        )
+    }
 }
 
 data class TrustWalletCoreEvmSigningRequest(
