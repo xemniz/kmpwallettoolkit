@@ -10,3 +10,9 @@ fun EvmTransaction.toSigningPayload(json: Json = Json): ByteArray {
     return json.encodeToString(this).encodeToByteArray()
 }
 
+private val Eip1559Json = Json { encodeDefaults = true }
+
+fun Eip1559Transaction.toSigningPayload(json: Json = Eip1559Json): ByteArray {
+    return json.encodeToString(this).encodeToByteArray()
+}
+
