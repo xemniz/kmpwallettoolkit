@@ -19,12 +19,14 @@ actual object TrustWalletCoreNativeBridge {
         chain: SupportedChain,
         transaction: Transaction,
     ): ByteArray {
+        val adapter = TrustWalletCoreRuntime.requireIosAdapter()
+
         require(transaction is EvmTransactionData) {
             "Only EvmTransactionData transactions are currently supported for signing. " +
                 "Received: ${transaction::class.simpleName}"
         }
 
-        val hex = TrustWalletCoreRuntime.requireIosAdapter().signEvmTransaction(
+        val hex = adapter.signEvmTransaction(
             mnemonic = mnemonic,
             chain = chain,
             transaction = TrustWalletCoreEvmSigningRequest.from(transaction),
