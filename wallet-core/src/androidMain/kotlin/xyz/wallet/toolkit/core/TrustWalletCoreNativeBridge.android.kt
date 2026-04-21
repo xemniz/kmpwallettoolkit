@@ -154,7 +154,7 @@ actual object TrustWalletCoreNativeBridge {
             .setTransaction(ethTransaction)
             .build()
 
-        val output: Ethereum.SigningOutput = AnySigner.sign(input, CoinType.ETHEREUM, Ethereum.SigningOutput.parser())
+        val output: Ethereum.SigningOutput = AnySigner.sign(input, coinType, Ethereum.SigningOutput.parser())
 
         check(output.error.number == 0) {
             "Signing failed: ${output.error} – ${output.errorMessage}"
