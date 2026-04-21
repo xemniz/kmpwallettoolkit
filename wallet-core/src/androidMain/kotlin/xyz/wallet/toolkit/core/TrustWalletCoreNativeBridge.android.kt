@@ -84,6 +84,8 @@ actual object TrustWalletCoreNativeBridge {
         SupportedChain.Base -> CoinType.ETHEREUM
         SupportedChain.Arbitrum -> CoinType.ETHEREUM
         SupportedChain.Polygon -> CoinType.POLYGON
+        SupportedChain.Optimism -> CoinType.ETHEREUM
+        SupportedChain.BnbSmartChain -> CoinType.SMARTCHAIN
     }
 
     /** Convert a [Long] to a big-endian unsigned [ByteString]. */
