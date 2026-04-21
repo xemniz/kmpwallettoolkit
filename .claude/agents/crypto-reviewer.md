@@ -47,6 +47,7 @@ For each item, either mark **PASS** or **FAIL** with a file:line citation. Do no
 14. Running `./gradlew :<module>:allTests` for every module touched is green. Run it yourself; don't trust the commit log.
 15. For wallet-core changes: `./gradlew :wallet-core:compileKotlinIosX64 :wallet-core:compileKotlinJvm` is green. This is how you catch `java.security` leaks into commonMain — iOS compilation fails.
 16. No test is `@Ignore`d / commented out / renamed to prefix with `_` without an explanation in the commit body.
+17. **If the implementer claims any red test is "pre-existing, not my fault," you must independently revert-and-reproduce.** Procedure: `git stash` the implementer's changes (or reset the touched files to `main`), re-run the failing test, confirm it still fails with the same name and signature, restore the implementer's state, verify `git status` is clean. Only then accept the "pre-existing" claim. Do not take the implementer's word for it — a silent regression is indistinguishable from a pre-existing failure without this check.
 
 ### E. Spec alignment
 17. Every acceptance criterion in the spec has a corresponding test in the diff. Missing criteria → FAIL.

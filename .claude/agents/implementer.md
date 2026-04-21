@@ -26,7 +26,9 @@ Every phase in the plan ends with the per-module test command from CLAUDE.md §3
 Run the test command explicitly — do not claim a phase is done by reading the code. The Gradle daemon has been known to return cached PASS on broken code; if a test that was previously red passes on the first try with no other changes, re-run it once with `--rerun-tasks` to confirm.
 
 ### Commits
-Commit at the end of each passing phase. Message format:
+Commit at the end of each **phase that produces artifacts** (code, test, or doc changes in tracked files). Validation-only phases — ones whose acceptance is "re-run the existing gates" with no diff — do **not** get a commit. Do not use `git commit --allow-empty` to manufacture a phase trail: the phase trail lives in the PR description, not in the git history.
+
+Message format:
 
 ```
 <module>: <one-line summary>
