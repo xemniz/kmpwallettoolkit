@@ -1,142 +1,100 @@
 package xyz.wallet.toolkit.sample
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import xyz.wallet.toolkit.core.ChainRegistry
-import xyz.wallet.toolkit.core.SupportedChain
-import xyz.wallet.toolkit.core.Wallet
+import xyz.wallet.toolkit.sample.nav.Navigator
+import xyz.wallet.toolkit.sample.nav.Route
+import xyz.wallet.toolkit.sample.nav.rememberNavigator
+import xyz.wallet.toolkit.sample.state.WalletSession
+import xyz.wallet.toolkit.sample.state.WalletSessionHolder
+import xyz.wallet.toolkit.sample.theme.WalletColors
+import xyz.wallet.toolkit.sample.theme.WalletTheme
+import xyz.wallet.toolkit.sample.ui.MonoText
+import xyz.wallet.toolkit.sample.ui.PhoneFrame
+import xyz.wallet.toolkit.sample.ui.PrimaryButton
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WalletSampleApp() {
-    var mnemonic by remember { mutableStateOf("Tap 'Create Wallet' to start") }
-    var address by remember { mutableStateOf("Address will appear here") }
-    var status by remember { mutableStateOf("Idle") }
-    var chainInfo by remember { mutableStateOf("") }
-
-    MaterialTheme {
-        Scaffold(
-            topBar = {
-                TopAppBar(
-                    title = { Text("KMP Wallet Toolkit") },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    ),
-                )
-            },
-        ) { innerPadding ->
-            Column(
+    val navigator = rememberNavigator()
+    val session = remember { WalletSession() }
+    WalletTheme {
+        WalletSessionHolder.Provide(session) {
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(innerPadding)
-                    .padding(horizontal = 16.dp)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                    .background(WalletColors.background)
+                    .padding(16.dp),
+                contentAlignment = Alignment.TopCenter,
             ) {
-                Spacer(modifier = Modifier.padding(top = 4.dp))
-
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    ),
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        Text(text = "🔑 Wallet Creation", style = MaterialTheme.typography.titleMedium)
-
-                        Button(
-                            onClick = {
-                                println("WalletSample: Create Wallet clicked")
-                                status = "Creating wallet..."
-                                try {
-                                    val wallet = Wallet.createWithTrustWalletCore()
-                                    val derivedAddress = wallet.address(SupportedChain.Ethereum)
-                                    mnemonic = wallet.mnemonic
-                                    address = derivedAddress
-                                    status = "Success"
-                                    println("WalletSample: Wallet created OK")
-                                } catch (e: Throwable) {
-                                    println("WalletSample: Wallet creation failed: ${e.message}")
-                                    mnemonic = "-"
-                                    address = "-"
-                                    status = "Failed: ${e.message ?: e::class.simpleName}"
-                                }
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Text("Create Wallet + Derive Ethereum Address")
-                        }
-
-                        Text(text = "Status: $status")
-                        HorizontalDivider()
-                        Text(text = "Mnemonic:", style = MaterialTheme.typography.labelLarge)
-                        Text(text = mnemonic, fontFamily = FontFamily.Monospace)
-                        Text(text = "Address:", style = MaterialTheme.typography.labelLarge)
-                        Text(text = address, fontFamily = FontFamily.Monospace)
-                    }
+                when (val route = navigator.current) {
+                    is Route.Welcome -> WelcomeScreen(navigator)
+                    else -> PlaceholderScreen(route, navigator)
                 }
+            }
+        }
+    }
+}
 
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    ),
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        Text(text = "⛓️ Chain Registry", style = MaterialTheme.typography.titleMedium)
+@Composable
+private fun WelcomeScreen(navigator: Navigator) {
+    PhoneFrame {
+        Text(
+            text = "kmp-wallet-toolkit",
+            color = WalletColors.textPrimary,
+            style = androidx.compose.material3.MaterialTheme.typography.titleLarge,
+            textAlign = TextAlign.Center,
+        )
+        Text(
+            text = "a low-fi showcase",
+            color = WalletColors.textSecondary,
+            style = androidx.compose.material3.MaterialTheme.typography.bodyMedium,
+            textAlign = TextAlign.Center,
+        )
+        Spacer(Modifier.height(8.dp))
+        PrimaryButton(
+            text = "Create Wallet",
+            onClick = { navigator.push(Route.Create) },
+        )
+        OutlinedButton(
+            onClick = { navigator.push(Route.Import) },
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = WalletColors.textPrimary),
+        ) {
+            Text("Import existing")
+        }
+    }
+}
 
-                        OutlinedButton(
-                            onClick = {
-                                println("WalletSample: List All Chains clicked")
-                                chainInfo = ChainRegistry.all().joinToString("\n") { chain ->
-                                    "${chain.displayName}  (id=${chain.id}, ticker=${chain.ticker})"
-                                }
-                                println("WalletSample: chainInfo = $chainInfo")
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Text("List All Chains")
-                        }
-
-                        if (chainInfo.isNotEmpty()) {
-                            Text(text = chainInfo, fontFamily = FontFamily.Monospace)
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.padding(bottom = 16.dp))
+@Composable
+private fun PlaceholderScreen(route: Route, navigator: Navigator) {
+    PhoneFrame {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            MonoText(text = "TODO: ${route::class.simpleName}")
+            OutlinedButton(
+                onClick = { navigator.pop() },
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = WalletColors.textPrimary),
+            ) {
+                Text("Back")
             }
         }
     }
