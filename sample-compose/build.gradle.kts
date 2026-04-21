@@ -12,21 +12,11 @@ kotlin {
         minSdk = 24
     }
 
-    listOf(
-        iosX64(),
-        iosArm64(),
-        iosSimulatorArm64(),
-    ).forEach { iosTarget ->
-        iosTarget.binaries.framework {
-            baseName = "SampleCompose"
-            isStatic = true
-            export(project(":wallet-core"))
-        }
-    }
-
     sourceSets {
         commonMain.dependencies {
             api(project(":wallet-core"))
+            api(project(":wallet-rpc"))
+            api(project(":wallet-evm"))
             implementation(compose.runtime)
             implementation(compose.foundation)
             implementation(compose.material3)
