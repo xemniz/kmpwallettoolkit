@@ -4,11 +4,11 @@ import xyz.wallet.toolkit.utils.hexToByteArray
 
 actual object TrustWalletCoreNativeBridge {
     actual fun createMnemonic(): String {
-        return TrustWalletCoreRuntime.requireIosAdapter().createMnemonic()
+        return TrustWalletCoreRuntime.requireIosAdapter(method = "createMnemonic").createMnemonic()
     }
 
     actual fun deriveAddress(mnemonic: String, chain: SupportedChain): String {
-        return TrustWalletCoreRuntime.requireIosAdapter().deriveAddress(
+        return TrustWalletCoreRuntime.requireIosAdapter(method = "deriveAddress").deriveAddress(
             mnemonic = mnemonic,
             chain = chain,
         )
@@ -19,7 +19,7 @@ actual object TrustWalletCoreNativeBridge {
         chain: SupportedChain,
         transaction: Transaction,
     ): ByteArray {
-        val adapter = TrustWalletCoreRuntime.requireIosAdapter()
+        val adapter = TrustWalletCoreRuntime.requireIosAdapter(method = "signTransaction")
 
         require(transaction is EvmTransactionData) {
             "Only EvmTransactionData transactions are currently supported for signing. " +
