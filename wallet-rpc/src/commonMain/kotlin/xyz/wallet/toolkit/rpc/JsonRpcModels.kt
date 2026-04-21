@@ -1,15 +1,18 @@
 package xyz.wallet.toolkit.rpc
 
+import kotlinx.serialization.EncodeDefault
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
 
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
 internal data class JsonRpcRequest(
-    val jsonrpc: String = "2.0",
+    @EncodeDefault val jsonrpc: String = "2.0",
     val method: String,
     val params: List<JsonElement>,
-    val id: Long = 1,
+    @EncodeDefault val id: Long = 1,
 )
 
 @Serializable
