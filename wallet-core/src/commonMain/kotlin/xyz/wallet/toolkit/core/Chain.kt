@@ -19,5 +19,6 @@ enum class SupportedChain(
     Polygon(id = 137, displayName = "Polygon", ticker = "MATIC"),
     Arbitrum(id = 42161, displayName = "Arbitrum", ticker = "ETH"),
     Optimism(id = 10, displayName = "Optimism", ticker = "ETH"),
+    BnbSmartChain(id = 56, displayName = "BNB Smart Chain", ticker = "BNB"),
 }
 
