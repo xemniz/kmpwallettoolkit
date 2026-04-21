@@ -269,6 +269,72 @@ internal val BIP39_ENGLISH: List<String> = listOf(
 )
 
 /**
- * Wordlist-level validation for BIP-39 English mnemonics. Methods are added in Phase 2.
+ * Wordlist-level validation for BIP-39 English mnemonics.
+ *
+ * Scope is strictly "are all words in the list and is the word count one of {12,15,18,21,24}".
+ * This does NOT verify the BIP-39 checksum (which requires SHA-256 over the entropy) and does
+ * NOT perform any seed derivation — those stay with Trust Wallet Core. A [PhraseValidation.Valid]
+ * result therefore means "the phrase is well-formed at the wordlist/length level", not "this is
+ * a usable mnemonic".
  */
-object Bip39Wordlist
+object Bip39Wordlist {
+    private val VALID_WORD_COUNTS = setOf(12, 15, 18, 21, 24)
+    private val WHITESPACE = Regex("\\s+")
+
+    /**
+     * Returns `true` iff [word] — after lowercasing — is a member of the BIP-39 English
+     * wordlist. Returns `false` for the empty string and for any input containing whitespace
+     * (trailing-space inputs like `"abandon "` are rejected by design; do not "just trim it" —
+     * callers that want phrase-level semantics should use [validatePhrase] instead).
+     */
+    fun contains(word: String): Boolean {
+        if (word.isEmpty()) return false
+        if (word.any { it.isWhitespace() }) return false
+        return BIP39_ENGLISH.binarySearch(word.lowercase()) >= 0
+    }
+
+    /**
+     * Validates that every word in [phrase] is in the BIP-39 English wordlist and that the
+     * word count is one of {12, 15, 18, 21, 24}.
+     *
+     * Normalization: leading/trailing whitespace is trimmed and runs of whitespace are
+     * collapsed; each token is lowercased before lookup.
+     *
+     * Precedence: if any words are unknown, [PhraseValidation.UnknownWords] is returned even
+     * when the word count is also invalid.
+     */
+    fun validatePhrase(phrase: String): PhraseValidation {
+        val tokens = phrase.trim().split(WHITESPACE).filter { it.isNotEmpty() }
+        val unknown = mutableListOf<Int>()
+        for ((index, token) in tokens.withIndex()) {
+            if (BIP39_ENGLISH.binarySearch(token.lowercase()) < 0) {
+                unknown += index
+            }
+        }
+        if (unknown.isNotEmpty()) return PhraseValidation.UnknownWords(unknown)
+        if (tokens.size !in VALID_WORD_COUNTS) return PhraseValidation.InvalidLength(tokens.size)
+        return PhraseValidation.Valid
+    }
+}
+
+/**
+ * Result of [Bip39Wordlist.validatePhrase].
+ *
+ * CLAUDE.md §4.1 applies: the input phrase is user-supplied mnemonic material, and no subtype
+ * may render phrase content in `toString()`. Every subtype has an explicit `toString()`
+ * override that emits only integer positions / counts so that a future field addition cannot
+ * silently leak words.
+ */
+sealed class PhraseValidation {
+    object Valid : PhraseValidation() {
+        override fun toString(): String = "Valid"
+    }
+
+    data class UnknownWords(val indices: List<Int>) : PhraseValidation() {
+        override fun toString(): String = "UnknownWords(indices=$indices)"
+    }
+
+    data class InvalidLength(val count: Int) : PhraseValidation() {
+        override fun toString(): String = "InvalidLength(count=$count)"
+    }
+}

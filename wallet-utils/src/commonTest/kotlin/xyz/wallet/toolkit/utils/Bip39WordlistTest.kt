@@ -2,6 +2,7 @@ package xyz.wallet.toolkit.utils
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class Bip39WordlistTest {
@@ -39,5 +40,47 @@ class Bip39WordlistTest {
     @Test
     fun `every word is lowercase`() {
         assertTrue(BIP39_ENGLISH.all { it == it.lowercase() })
+    }
+
+    // --- Phase 2: contains() + validatePhrase() happy path. ------------------------------
+
+    @Test
+    fun `contains accepts known words including boundaries`() {
+        assertTrue(Bip39Wordlist.contains("abandon"))
+        assertTrue(Bip39Wordlist.contains("zoo"))
+    }
+
+    @Test
+    fun `contains is case-insensitive`() {
+        assertTrue(Bip39Wordlist.contains("ABANDON"))
+        assertTrue(Bip39Wordlist.contains("Abandon"))
+    }
+
+    @Test
+    fun `contains rejects empty string`() {
+        assertFalse(Bip39Wordlist.contains(""))
+    }
+
+    @Test
+    fun `contains rejects unknown word`() {
+        assertFalse(Bip39Wordlist.contains("notaword"))
+    }
+
+    @Test
+    fun `contains rejects trailing whitespace`() {
+        // Spec acceptance §6: "abandon " (trailing space) must be false. contains() does
+        // not trim — callers that want phrase semantics should use validatePhrase().
+        assertFalse(Bip39Wordlist.contains("abandon "))
+    }
+
+    @Test
+    fun `validatePhrase returns Valid for BIP-39 all-zero-entropy vector`() {
+        // Golden vector (BIP-39 English, entropy = 00000000000000000000000000000000):
+        //   abandon abandon abandon abandon abandon abandon abandon abandon abandon
+        //   abandon abandon about
+        // Source: https://github.com/trezor/python-mnemonic/blob/master/vectors.json
+        val phrase = "abandon abandon abandon abandon abandon abandon " +
+            "abandon abandon abandon abandon abandon about"
+        assertEquals(PhraseValidation.Valid, Bip39Wordlist.validatePhrase(phrase))
     }
 }
