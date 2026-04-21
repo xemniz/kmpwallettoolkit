@@ -1,6 +1,12 @@
 package xyz.wallet.toolkit.core
 
 import com.google.protobuf.ByteString
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import wallet.core.java.AnySigner
 import wallet.core.jni.CoinType
 import wallet.core.jni.HDWallet
@@ -35,6 +41,86 @@ actual object TrustWalletCoreNativeBridge {
         }
         return signEvmTransaction(mnemonic, chain, transaction)
     }
+
+    actual fun signEip1559(
+        mnemonic: String,
+        chain: SupportedChain,
+        signingPayloadJson: ByteArray,
+    ): ByteArray {
+        val json = Json.parseToJsonElement(signingPayloadJson.decodeToString()).jsonObject
+
+        val chainId = json.requireLong("chainId")
+        val to = json.requireString("to")
+        val valueWei = json["valueWei"]?.jsonPrimitive?.content ?: "0"
+        val maxFeePerGasWei = json.requireString("maxFeePerGasWei")
+        val maxPriorityFeePerGasWei = json.requireString("maxPriorityFeePerGasWei")
+        val gasLimit = json.requireString("gasLimit")
+        val nonce = json.requireLong("nonce")
+        val dataHex = json["dataHex"]?.jsonPrimitive?.let { if (it.content == "null") null else it.content }
+            ?.takeIf { it.isNotEmpty() }
+        val accessList = json["accessList"]?.jsonArray ?: JsonArray(emptyList())
+
+        // Payload-declared chainId must match the routing chain. The outer
+        // Wallet.signEip1559Transaction extension also guards this, but the
+        // bridge stays honest about its invariants.
+        require(chainId == chain.id) {
+            "Payload chainId $chainId does not match routing chain ${chain.displayName} (${chain.id})"
+        }
+
+        val coinType = chain.toCoinType()
+        val wallet = HDWallet(mnemonic, "")
+        val privateKey = wallet.getKeyForCoin(coinType)
+
+        val transferBuilder = Ethereum.Transaction.Transfer.newBuilder()
+            .setAmount(valueWei.decimalToByteString())
+        if (dataHex != null) {
+            transferBuilder.setData(ByteString.copyFrom(dataHex.hexToByteArray()))
+        }
+
+        val ethTransaction = Ethereum.Transaction.newBuilder()
+            .setTransfer(transferBuilder)
+            .build()
+
+        val input = Ethereum.SigningInput.newBuilder()
+            .setTxMode(Ethereum.TransactionMode.Enveloped)
+            .setChainId(chainId.toByteString())
+            .setNonce(nonce.toByteString())
+            .setMaxFeePerGas(maxFeePerGasWei.decimalToByteString())
+            .setMaxInclusionFeePerGas(maxPriorityFeePerGasWei.decimalToByteString())
+            .setGasLimit(gasLimit.decimalToByteString())
+            .setToAddress(to)
+            .setPrivateKey(ByteString.copyFrom(privateKey.data()))
+            .setTransaction(ethTransaction)
+
+        accessList.forEach { entry ->
+            val obj = entry.jsonObject
+            val address = obj.requireString("address")
+            val storageKeys = obj["storageKeys"]?.jsonArray ?: JsonArray(emptyList())
+            val accessBuilder = Ethereum.Access.newBuilder()
+                .setAddress(address)
+            storageKeys.forEach { key ->
+                accessBuilder.addStoredKeys(ByteString.copyFrom(key.jsonPrimitive.content.hexToByteArray()))
+            }
+            input.addAccessList(accessBuilder)
+        }
+
+        val output: Ethereum.SigningOutput =
+            AnySigner.sign(input.build(), coinType, Ethereum.SigningOutput.parser())
+
+        check(output.error.number == 0) {
+            "Signing failed: ${output.error} – ${output.errorMessage}"
+        }
+
+        return output.encoded.toByteArray()
+    }
+
+    private fun JsonObject.requireString(key: String): String =
+        this[key]?.jsonPrimitive?.content
+            ?: error("Missing or non-primitive field '$key' in EIP-1559 signing payload")
+
+    private fun JsonObject.requireLong(key: String): Long =
+        this[key]?.jsonPrimitive?.content?.toLong()
+            ?: error("Missing or non-primitive field '$key' in EIP-1559 signing payload")
 
     // ── EVM signing via protobuf ────────────────────────────────────────
 

@@ -18,6 +18,13 @@ actual object TrustWalletCoreNativeBridge {
     ): ByteArray =
         jvmNotSupported("signTransaction")
 
+    actual fun signEip1559(
+        mnemonic: String,
+        chain: SupportedChain,
+        signingPayloadJson: ByteArray,
+    ): ByteArray =
+        jvmNotSupported("signEip1559")
+
     private fun jvmNotSupported(method: String): Nothing {
         throw NotImplementedError(
             "Trust Wallet Core native bridge is not available on JVM. " +
