@@ -17,6 +17,7 @@ import xyz.wallet.toolkit.core.Wallet
 import xyz.wallet.toolkit.sample.nav.Navigator
 import xyz.wallet.toolkit.sample.nav.Route
 import xyz.wallet.toolkit.sample.state.LocalWalletSession
+import xyz.wallet.toolkit.sample.state.SecureWalletStorageRuntime
 import xyz.wallet.toolkit.sample.theme.WalletColors
 import xyz.wallet.toolkit.sample.ui.PhoneFrame
 import xyz.wallet.toolkit.sample.ui.PrimaryButton
@@ -73,6 +74,7 @@ fun ImportWalletScreen(navigator: Navigator) {
                         // Force a derivation so an invalid-but-correct-word-count
                         // phrase surfaces here rather than on the Home screen.
                         wallet.address(session.selectedChain)
+                        runCatching { SecureWalletStorageRuntime.get().save(phrase) }
                         session.wallet = wallet
                         navigator.replace(Route.Home)
                     } catch (t: Throwable) {

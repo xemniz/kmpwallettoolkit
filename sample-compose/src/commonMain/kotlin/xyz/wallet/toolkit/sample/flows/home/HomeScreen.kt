@@ -21,6 +21,7 @@ import xyz.wallet.toolkit.core.SupportedChain
 import xyz.wallet.toolkit.sample.nav.Navigator
 import xyz.wallet.toolkit.sample.nav.Route
 import xyz.wallet.toolkit.sample.state.LocalWalletSession
+import xyz.wallet.toolkit.sample.state.SecureWalletStorageRuntime
 import xyz.wallet.toolkit.sample.theme.WalletColors
 import xyz.wallet.toolkit.sample.ui.MonoText
 import xyz.wallet.toolkit.sample.ui.PhoneFrame
@@ -55,6 +56,7 @@ fun HomeScreen(navigator: Navigator) {
     val state = remember { HomeState() }
     val loader = rememberHomeLoader(session, state, homeChains)
     var showReceive by remember { mutableStateOf(false) }
+    var showSignOut by remember { mutableStateOf(false) }
 
     PhoneFrame {
         if (wallet == null) {
@@ -102,6 +104,13 @@ fun HomeScreen(navigator: Navigator) {
                 Text("Receive")
             }
         }
+
+        TextButton(
+            onClick = { showSignOut = true },
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text("Sign out", color = WalletColors.textSecondary)
+        }
     }
 
     if (showReceive) {
@@ -112,6 +121,26 @@ fun HomeScreen(navigator: Navigator) {
             },
             title = { Text("Receive") },
             text = { Text("Coming soon") },
+        )
+    }
+
+    if (showSignOut) {
+        AlertDialog(
+            onDismissRequest = { showSignOut = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    showSignOut = false
+                    runCatching { SecureWalletStorageRuntime.get().clear() }
+                    session.wallet = null
+                    session.lastTxHash = null
+                    navigator.replace(Route.Welcome)
+                }) { Text("Sign out") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showSignOut = false }) { Text("Cancel") }
+            },
+            title = { Text("Sign out?") },
+            text = { Text("Your recovery phrase will be removed from this device. You can restore from backup to return.") },
         )
     }
 }

@@ -14,7 +14,11 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
@@ -27,8 +31,10 @@ import xyz.wallet.toolkit.sample.flows.tx.TxStatusScreen
 import xyz.wallet.toolkit.sample.nav.Navigator
 import xyz.wallet.toolkit.sample.nav.Route
 import xyz.wallet.toolkit.sample.nav.rememberNavigator
+import xyz.wallet.toolkit.sample.state.SecureWalletStorageRuntime
 import xyz.wallet.toolkit.sample.state.WalletSession
 import xyz.wallet.toolkit.sample.state.WalletSessionHolder
+import xyz.wallet.toolkit.core.Wallet
 import xyz.wallet.toolkit.sample.theme.WalletColors
 import xyz.wallet.toolkit.sample.theme.WalletTheme
 import xyz.wallet.toolkit.sample.ui.PhoneFrame
@@ -38,6 +44,19 @@ import xyz.wallet.toolkit.sample.ui.PrimaryButton
 fun WalletSampleApp() {
     val navigator = rememberNavigator()
     val session = remember { WalletSession() }
+    var hydrating by remember { mutableStateOf(true) }
+
+    LaunchedEffect(Unit) {
+        val stored = runCatching { SecureWalletStorageRuntime.get().load() }.getOrNull()
+        if (!stored.isNullOrEmpty()) {
+            runCatching {
+                session.wallet = Wallet.fromMnemonicWithTrustWalletCore(stored)
+                navigator.replace(Route.Home)
+            }
+        }
+        hydrating = false
+    }
+
     WalletTheme {
         WalletSessionHolder.Provide(session) {
             Box(
@@ -48,7 +67,10 @@ fun WalletSampleApp() {
                     .padding(16.dp),
                 contentAlignment = Alignment.TopCenter,
             ) {
-                when (val route = navigator.current) {
+                if (hydrating) {
+                    // Brief blank splash — avoids flashing Welcome before
+                    // we know whether a stored wallet exists.
+                } else when (val route = navigator.current) {
                     is Route.Welcome -> WelcomeScreen(navigator)
                     is Route.Create -> CreateWalletScreen(navigator)
                     is Route.Import -> ImportWalletScreen(navigator)

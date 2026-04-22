@@ -12,6 +12,7 @@
 		AA0000000000000000000003 /* WalletCore in Frameworks */ = {isa = PBXBuildFile; productRef = AA0000000000000000000002 /* WalletCore */; };
 		AA0000000000000000000008 /* WalletCoreSwiftProtobuf in Frameworks */ = {isa = PBXBuildFile; productRef = AA0000000000000000000009 /* WalletCoreSwiftProtobuf */; };
 		AA0000000000000000000006 /* TrustWalletCoreAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000007 /* TrustWalletCoreAdapter.swift */; };
+		AA000000000000000000000A /* KeychainSecureWalletStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000000B /* KeychainSecureWalletStorage.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -20,6 +21,7 @@
 		7555FF80242A565900829871 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		7555FF82242A565900829871 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		AA0000000000000000000007 /* TrustWalletCoreAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrustWalletCoreAdapter.swift; sourceTree = "<group>"; };
+		AA000000000000000000000B /* KeychainSecureWalletStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainSecureWalletStorage.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -58,6 +60,7 @@
 				7555FF7E242A565900829871 /* iOSApp.swift */,
 				7555FF80242A565900829871 /* ContentView.swift */,
 				AA0000000000000000000007 /* TrustWalletCoreAdapter.swift */,
+				AA000000000000000000000B /* KeychainSecureWalletStorage.swift */,
 			);
 			path = iosApp;
 			sourceTree = "<group>";
@@ -161,6 +164,7 @@
 				7555FF81242A565900829871 /* ContentView.swift in Sources */,
 				7555FF7F242A565900829871 /* iOSApp.swift in Sources */,
 				AA0000000000000000000006 /* TrustWalletCoreAdapter.swift in Sources */,
+				AA000000000000000000000A /* KeychainSecureWalletStorage.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
