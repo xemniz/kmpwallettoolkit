@@ -11,7 +11,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import java.math.BigDecimal
 import xyz.wallet.toolkit.sample.format.EthFormat
 import xyz.wallet.toolkit.sample.theme.WalletColors
 
@@ -83,11 +82,6 @@ internal fun parsesAsGwei(decimal: String): Boolean {
 }
 
 internal fun priorityLeMaxFee(priority: String, maxFee: String): Boolean {
-    return try {
-        val p = BigDecimal(priority.trim())
-        val m = BigDecimal(maxFee.trim())
-        p.compareTo(m) <= 0
-    } catch (_: NumberFormatException) {
-        false
-    }
+    val c = EthFormat.compareDecimal(priority, maxFee) ?: return false
+    return c <= 0
 }

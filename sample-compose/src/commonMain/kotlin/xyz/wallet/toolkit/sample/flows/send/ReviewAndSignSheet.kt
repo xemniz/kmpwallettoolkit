@@ -31,18 +31,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
-import java.math.BigDecimal
-import java.math.BigInteger
-import java.math.RoundingMode
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import xyz.wallet.toolkit.core.SupportedChain
+import xyz.wallet.toolkit.sample.format.EthFormat
 import xyz.wallet.toolkit.sample.theme.WalletColors
 import xyz.wallet.toolkit.sample.ui.MonoText
 
 private const val HOLD_MS: Long = 1_500L
-private val WEI_PER_ETH: BigDecimal = BigDecimal.TEN.pow(18)
 
 /**
  * Review sheet with hold-to-sign. No signing payload, no signed hex, no
@@ -208,15 +205,9 @@ internal fun truncateAddress(addr: String): String {
  */
 internal fun estMaxFeeEth(maxFeeGwei: String): String {
     return try {
-        val gwei = BigDecimal(maxFeeGwei.trim())
-        val feeWei = gwei.multiply(BigDecimal(BigInteger.TEN.pow(9)))
-            .multiply(BigDecimal("21000"))
-        feeWei.divide(WEI_PER_ETH, 8, RoundingMode.DOWN)
-            .stripTrailingZeros()
-            .toPlainString()
-    } catch (_: NumberFormatException) {
-        "—"
-    } catch (_: ArithmeticException) {
+        val feeWei = EthFormat.multiplyWeiByInt(EthFormat.gweiToWei(maxFeeGwei), 21_000)
+        EthFormat.formatWeiAsEth(feeWei, scale = 8)
+    } catch (_: IllegalArgumentException) {
         "—"
     }
 }
