@@ -1,10 +1,17 @@
 package xyz.wallet.toolkit.sample.flows.home
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedButton
@@ -15,11 +22,20 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import xyz.wallet.toolkit.core.SupportedChain
 import xyz.wallet.toolkit.sample.nav.Navigator
 import xyz.wallet.toolkit.sample.nav.Route
+import xyz.wallet.toolkit.sample.portfolio.PortfolioChange24h
+import xyz.wallet.toolkit.sample.portfolio.PortfolioState
+import xyz.wallet.toolkit.sample.portfolio.formatPercent
+import xyz.wallet.toolkit.sample.portfolio.formatUsd
 import xyz.wallet.toolkit.sample.state.LocalWalletSession
 import xyz.wallet.toolkit.sample.state.SecureWalletStorageRuntime
 import xyz.wallet.toolkit.sample.theme.WalletColors
@@ -27,27 +43,20 @@ import xyz.wallet.toolkit.sample.ui.MonoText
 import xyz.wallet.toolkit.sample.ui.PhoneFrame
 import xyz.wallet.toolkit.sample.ui.PrimaryButton
 
-/**
- * Chains rendered on the Home screen. SupportedChain includes Polygon /
- * Arbitrum / Optimism / BnbSmartChain but S4 is scoped to Ethereum + Base
- * only (see spec Non-goals).
- */
 private val homeChains: List<SupportedChain> =
     listOf(SupportedChain.Ethereum, SupportedChain.Base)
 
 /**
- * Portfolio entry point. Wires state, the fan-out fetch effect, the address
- * header, the per-chain cards, and the Send/Receive CTAs.
+ * Portfolio-style Home screen (design A). Renders:
+ *  - address + chain chip (chain chip opens a Ethereum/Base switcher dialog)
+ *  - total USD for the selected chain + 24h delta
+ *  - Send / Receive / Swap (disabled) / Buy (disabled) action tiles
+ *  - per-token Assets list from Zerion
+ *  - Sign out
  *
- * Reads the active wallet via [LocalWalletSession]. The address displayed in
- * the header is lowercased (CLAUDE.md §4.7); the same lowercased form is also
- * what the RPC layer receives inside [rememberHomeLoader].
- *
- * Send CTA pushes `Route.Send(chainId = state.selectedChainId)`. It is disabled
- * while the selected chain's balance is still Loading to avoid initiating a
- * send flow on stale/unknown balance.
- *
- * Receive CTA is a stub — it opens a "Coming soon" AlertDialog. No navigation.
+ * Send is enabled only when the selected chain has a loaded portfolio with
+ * a non-zero native balance — prevents entering the send flow with no ETH
+ * to pay for gas.
  */
 @Composable
 fun HomeScreen(navigator: Navigator) {
@@ -55,8 +64,10 @@ fun HomeScreen(navigator: Navigator) {
     val wallet = session.wallet
     val state = remember { HomeState() }
     val loader = rememberHomeLoader(session, state, homeChains)
+
     var showReceive by remember { mutableStateOf(false) }
     var showSignOut by remember { mutableStateOf(false) }
+    var showChainPicker by remember { mutableStateOf(false) }
 
     PhoneFrame {
         if (wallet == null) {
@@ -65,45 +76,43 @@ fun HomeScreen(navigator: Navigator) {
                 onClick = { navigator.pop() },
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = WalletColors.textPrimary),
-            ) {
-                Text("Back")
-            }
+            ) { Text("Back") }
             return@PhoneFrame
         }
 
-        // The EVM address is the same across EVM chains; any chain works.
-        // .lowercase() is applied inside AddressHeader as well.
-        AddressHeader(address = wallet.address(SupportedChain.Ethereum).lowercase())
+        val selectedChain = homeChains.firstOrNull { it.id == state.selectedChainId }
+            ?: SupportedChain.Ethereum
+        val portfolio = state.portfolios[state.selectedChainId] ?: PortfolioState.Loading
+
+        TopBar(
+            address = wallet.address(SupportedChain.Ethereum).lowercase(),
+            chain = selectedChain,
+            onChainClick = { showChainPicker = true },
+        )
+
+        Spacer(Modifier.height(8.dp))
+
+        TotalBalance(portfolio = portfolio)
+
+        Spacer(Modifier.height(16.dp))
+
+        ActionTiles(
+            sendEnabled = portfolio is PortfolioState.Value && hasNativeBalance(portfolio),
+            onSend = { navigator.push(Route.Send(chainId = state.selectedChainId)) },
+            onReceive = { showReceive = true },
+        )
+
+        Spacer(Modifier.height(20.dp))
+
+        AssetsHeader(count = (portfolio as? PortfolioState.Value)?.snapshot?.tokens?.size)
 
         PortfolioList(
-            chains = homeChains,
-            state = state,
-            loader = loader,
+            chain = selectedChain,
+            entry = portfolio,
+            onRetry = { loader.refetch(selectedChain) },
         )
 
         Spacer(Modifier.height(0.dp).weight(1f))
-
-        val selectedBalance = state.balances[state.selectedChainId]
-        val sendEnabled = selectedBalance is ChainBalance.Value
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            PrimaryButton(
-                text = "Send",
-                enabled = sendEnabled,
-                onClick = { navigator.push(Route.Send(chainId = state.selectedChainId)) },
-                modifier = Modifier.weight(1f),
-            )
-            OutlinedButton(
-                onClick = { showReceive = true },
-                modifier = Modifier.weight(1f),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = WalletColors.textPrimary),
-            ) {
-                Text("Receive")
-            }
-        }
 
         TextButton(
             onClick = { showSignOut = true },
@@ -121,6 +130,33 @@ fun HomeScreen(navigator: Navigator) {
             },
             title = { Text("Receive") },
             text = { Text("Coming soon") },
+        )
+    }
+
+    if (showChainPicker) {
+        AlertDialog(
+            onDismissRequest = { showChainPicker = false },
+            confirmButton = {},
+            title = { Text("Switch chain") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    homeChains.forEach { chain ->
+                        TextButton(
+                            onClick = {
+                                state.selectedChainId = chain.id
+                                showChainPicker = false
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(
+                                text = chain.displayName,
+                                color = WalletColors.textPrimary,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
+                    }
+                }
+            },
         )
     }
 
@@ -142,5 +178,153 @@ fun HomeScreen(navigator: Navigator) {
             title = { Text("Sign out?") },
             text = { Text("Your recovery phrase will be removed from this device. You can restore from backup to return.") },
         )
+    }
+}
+
+private fun hasNativeBalance(state: PortfolioState.Value): Boolean {
+    val native = state.snapshot.native ?: return false
+    val numeric = native.quantityDecimal.trim()
+    if (numeric.isEmpty()) return false
+    return numeric.any { it in '1'..'9' }
+}
+
+@Composable
+private fun TopBar(
+    address: String,
+    chain: SupportedChain,
+    onChainClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column {
+            Text(
+                text = "Main wallet",
+                color = WalletColors.textPrimary,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 13.sp,
+            )
+            MonoText(text = shortAddr(address))
+        }
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(16.dp))
+                .border(1.dp, WalletColors.outline, RoundedCornerShape(16.dp))
+                .clickable(onClick = onChainClick)
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+        ) {
+            Text(
+                text = "◇ ${chain.displayName} ▾",
+                color = WalletColors.textPrimary,
+                fontSize = 12.sp,
+            )
+        }
+    }
+}
+
+private fun shortAddr(address: String): String =
+    if (address.length < 10) address else "${address.take(6)}…${address.takeLast(4)}"
+
+@Composable
+private fun TotalBalance(portfolio: PortfolioState) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            text = "TOTAL BALANCE",
+            color = WalletColors.textSecondary,
+            fontSize = 11.sp,
+        )
+        Spacer(Modifier.height(4.dp))
+        val (amount, delta) = when (portfolio) {
+            is PortfolioState.Loading -> "…" to null
+            is PortfolioState.Error -> "—" to null
+            is PortfolioState.Value -> formatUsd(portfolio.snapshot.totalUsd) to portfolio.snapshot.change24h
+        }
+        Text(
+            text = amount,
+            color = WalletColors.textPrimary,
+            fontSize = 34.sp,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center,
+        )
+        if (delta != null) {
+            DeltaLabel(delta)
+        } else {
+            Spacer(Modifier.height(16.dp))
+        }
+    }
+}
+
+@Composable
+private fun DeltaLabel(delta: PortfolioChange24h) {
+    val positive = delta.absoluteUsd >= 0
+    val amount = formatUsd(delta.absoluteUsd)
+    val signedAmount = if (positive && !amount.startsWith("-")) "+$amount" else amount
+    Text(
+        text = "$signedAmount · ${formatPercent(delta.percent)} today",
+        color = if (positive) WalletColors.accent else WalletColors.textSecondary,
+        fontSize = 12.sp,
+    )
+}
+
+@Composable
+private fun ActionTiles(
+    sendEnabled: Boolean,
+    onSend: () -> Unit,
+    onReceive: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        PrimaryButton(
+            text = "Send",
+            enabled = sendEnabled,
+            onClick = onSend,
+            modifier = Modifier.weight(1f),
+        )
+        OutlinedButton(
+            onClick = onReceive,
+            modifier = Modifier.weight(1f),
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = WalletColors.textPrimary),
+        ) { Text("Receive") }
+        DisabledTile(label = "Swap", modifier = Modifier.weight(1f))
+        DisabledTile(label = "Buy", modifier = Modifier.weight(1f))
+    }
+}
+
+@Composable
+private fun DisabledTile(label: String, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(8.dp))
+            .border(1.dp, WalletColors.outline, RoundedCornerShape(8.dp))
+            .padding(vertical = 10.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(text = label, color = WalletColors.textSecondary, fontSize = 12.sp)
+    }
+}
+
+@Composable
+private fun AssetsHeader(count: Int?) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = "Assets",
+            color = WalletColors.textPrimary,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 13.sp,
+        )
+        if (count != null) {
+            Text(text = count.toString(), color = WalletColors.textSecondary, fontSize = 11.sp)
+        }
     }
 }
