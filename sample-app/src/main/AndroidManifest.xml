@@ -4,6 +4,7 @@
     <uses-permission android:name="android.permission.INTERNET" />
 
     <application
+        android:name=".WalletSampleApplication"
         android:allowBackup="true"
         android:label="Wallet Toolkit Sample"
         android:supportsRtl="true"

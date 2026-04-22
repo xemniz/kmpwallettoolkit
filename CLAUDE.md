@@ -154,7 +154,8 @@ If you find yourself needing to edit a hot file, stop and raise it to the user o
 - Do **not** run `./gradlew build`, `./gradlew clean build`, or any task that invokes every module. Scope to the module.
 - Do **not** edit files outside the modules named in your spec's "module(s) touched" field.
 - Do **not** add sample-app, sample-compose, or iosApp usage of a new API as part of an implementation task — those are downstream integration work.
-- Do **not** introduce Koin, Hilt, or any DI framework. There is no DI wired in this repo despite the README suggesting otherwise. Constructor injection only.
+- Do **not** introduce Koin, Hilt, or any DI framework in the toolkit modules (`wallet-utils`, `wallet-core`, `wallet-evm`, `wallet-rpc`). These are library surface — consumers pick their own DI. Constructor injection only here.
+  - DI **is** allowed in the sample/showcase modules (`sample-compose`, `sample-app`, `iosApp`). They use Koin 4.x + AndroidX Lifecycle ViewModel KMP. New screen VMs / shared repos go in `sample-compose/.../di/AppModule.kt`; init via `initKoin { ... }` (Android: `WalletSampleApplication.onCreate`; iOS: `iOSApp.init()` calling `KoinInitKt.doInitKoinIos`).
 - Do **not** silence a compile warning with `@Suppress` without a one-line justification in the PR description.
 - Do **not** edit `gradle-daemon-jvm.properties` or `gradle.properties` without explicit instruction — this is a Gradle daemon stability hazard across worktrees.
 

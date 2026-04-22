@@ -19,6 +19,7 @@ import xyz.wallet.toolkit.sample.nav.Route
 import xyz.wallet.toolkit.sample.rpc.RpcClientFactory
 import xyz.wallet.toolkit.sample.state.LocalWalletSession
 import xyz.wallet.toolkit.sample.theme.WalletColors
+import xyz.wallet.toolkit.sample.ui.BackBar
 import xyz.wallet.toolkit.sample.ui.ChainChip
 import xyz.wallet.toolkit.sample.ui.PhoneFrame
 import xyz.wallet.toolkit.sample.ui.PrimaryButton
@@ -41,11 +42,7 @@ fun SendScreen(route: Route.Send, navigator: Navigator) {
     var showReview by remember { mutableStateOf(false) }
 
     PhoneFrame {
-        Text(
-            text = "Send",
-            color = WalletColors.textPrimary,
-            style = androidx.compose.material3.MaterialTheme.typography.titleLarge,
-        )
+        BackBar(onBack = { navigator.pop() }, title = "Send")
 
         if (wallet == null || chain == null) {
             Text(

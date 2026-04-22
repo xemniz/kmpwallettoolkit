@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
@@ -43,20 +45,20 @@ fun PortfolioList(
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(
+    LazyColumn(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         when (entry) {
-            is PortfolioState.Loading -> repeat(3) { PlaceholderRow() }
+            is PortfolioState.Loading -> items(3) { PlaceholderRow() }
             is PortfolioState.Value -> {
                 if (entry.snapshot.tokens.isEmpty()) {
-                    EmptyRow(chain)
+                    item { EmptyRow(chain) }
                 } else {
-                    entry.snapshot.tokens.forEach { token -> TokenRow(token) }
+                    items(entry.snapshot.tokens) { token -> TokenRow(token) }
                 }
             }
-            is PortfolioState.Error -> ErrorRow(entry.message, onRetry)
+            is PortfolioState.Error -> item { ErrorRow(entry.message, onRetry) }
         }
     }
 }

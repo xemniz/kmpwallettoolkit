@@ -19,6 +19,7 @@ import xyz.wallet.toolkit.sample.nav.Route
 import xyz.wallet.toolkit.sample.state.LocalWalletSession
 import xyz.wallet.toolkit.sample.state.SecureWalletStorageRuntime
 import xyz.wallet.toolkit.sample.theme.WalletColors
+import xyz.wallet.toolkit.sample.ui.BackBar
 import xyz.wallet.toolkit.sample.ui.PhoneFrame
 import xyz.wallet.toolkit.sample.ui.PrimaryButton
 
@@ -38,12 +39,7 @@ fun ImportWalletScreen(navigator: Navigator) {
     val session = LocalWalletSession.current
 
     PhoneFrame {
-        Text(
-            text = "Restore wallet",
-            color = WalletColors.textPrimary,
-            style = MaterialTheme.typography.titleLarge,
-            textAlign = TextAlign.Center,
-        )
+        BackBar(onBack = { navigator.pop() }, title = "Restore wallet")
 
         SourcePickerTabs()
 

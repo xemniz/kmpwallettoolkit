@@ -18,10 +18,13 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import org.koin.compose.koinInject
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -41,7 +44,6 @@ import xyz.wallet.toolkit.sample.state.SecureWalletStorageRuntime
 import xyz.wallet.toolkit.sample.theme.WalletColors
 import xyz.wallet.toolkit.sample.ui.MonoText
 import xyz.wallet.toolkit.sample.ui.PhoneFrame
-import xyz.wallet.toolkit.sample.ui.PrimaryButton
 
 private val homeChains: List<SupportedChain> =
     listOf(SupportedChain.Ethereum, SupportedChain.Base)
@@ -59,15 +61,18 @@ private val homeChains: List<SupportedChain> =
  * to pay for gas.
  */
 @Composable
-fun HomeScreen(navigator: Navigator) {
+fun HomeScreen(navigator: Navigator, vm: HomeViewModel = koinInject()) {
     val session = LocalWalletSession.current
     val wallet = session.wallet
-    val state = remember { HomeState() }
-    val loader = rememberHomeLoader(session, state, homeChains)
+    val ui by vm.ui.collectAsState()
 
     var showReceive by remember { mutableStateOf(false) }
     var showSignOut by remember { mutableStateOf(false) }
     var showChainPicker by remember { mutableStateOf(false) }
+
+    LaunchedEffect(wallet) {
+        if (wallet != null) vm.ensureLoaded(wallet, homeChains)
+    }
 
     PhoneFrame {
         if (wallet == null) {
@@ -80,9 +85,9 @@ fun HomeScreen(navigator: Navigator) {
             return@PhoneFrame
         }
 
-        val selectedChain = homeChains.firstOrNull { it.id == state.selectedChainId }
+        val selectedChain = homeChains.firstOrNull { it.id == ui.selectedChainId }
             ?: SupportedChain.Ethereum
-        val portfolio = state.portfolios[state.selectedChainId] ?: PortfolioState.Loading
+        val portfolio = ui.portfolioFor(ui.selectedChainId)
 
         TopBar(
             address = wallet.address(SupportedChain.Ethereum).lowercase(),
@@ -98,7 +103,7 @@ fun HomeScreen(navigator: Navigator) {
 
         ActionTiles(
             sendEnabled = portfolio is PortfolioState.Value && hasNativeBalance(portfolio),
-            onSend = { navigator.push(Route.Send(chainId = state.selectedChainId)) },
+            onSend = { navigator.push(Route.Send(chainId = ui.selectedChainId)) },
             onReceive = { showReceive = true },
         )
 
@@ -109,10 +114,9 @@ fun HomeScreen(navigator: Navigator) {
         PortfolioList(
             chain = selectedChain,
             entry = portfolio,
-            onRetry = { loader.refetch(selectedChain) },
+            onRetry = { vm.refresh(wallet, selectedChain) },
+            modifier = Modifier.weight(1f),
         )
-
-        Spacer(Modifier.height(0.dp).weight(1f))
 
         TextButton(
             onClick = { showSignOut = true },
@@ -143,7 +147,7 @@ fun HomeScreen(navigator: Navigator) {
                     homeChains.forEach { chain ->
                         TextButton(
                             onClick = {
-                                state.selectedChainId = chain.id
+                                vm.selectChain(chain.id)
                                 showChainPicker = false
                             },
                             modifier = Modifier.fillMaxWidth(),
@@ -167,6 +171,7 @@ fun HomeScreen(navigator: Navigator) {
                 TextButton(onClick = {
                     showSignOut = false
                     runCatching { SecureWalletStorageRuntime.get().clear() }
+                    vm.clearCache()
                     session.wallet = null
                     session.lastTxHash = null
                     navigator.replace(Route.Welcome)
@@ -281,32 +286,55 @@ private fun ActionTiles(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        PrimaryButton(
-            text = "Send",
+        ActionTile(
+            label = "Send",
+            modifier = Modifier.weight(1f),
             enabled = sendEnabled,
+            filled = true,
             onClick = onSend,
-            modifier = Modifier.weight(1f),
         )
-        OutlinedButton(
-            onClick = onReceive,
+        ActionTile(
+            label = "Receive",
             modifier = Modifier.weight(1f),
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = WalletColors.textPrimary),
-        ) { Text("Receive") }
-        DisabledTile(label = "Swap", modifier = Modifier.weight(1f))
-        DisabledTile(label = "Buy", modifier = Modifier.weight(1f))
+            onClick = onReceive,
+        )
+        ActionTile(label = "Swap", modifier = Modifier.weight(1f), enabled = false)
+        ActionTile(label = "Buy", modifier = Modifier.weight(1f), enabled = false)
     }
 }
 
 @Composable
-private fun DisabledTile(label: String, modifier: Modifier = Modifier) {
+private fun ActionTile(
+    label: String,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    filled: Boolean = false,
+    onClick: (() -> Unit)? = null,
+) {
+    val shape = RoundedCornerShape(12.dp)
+    val bg = if (filled && enabled) WalletColors.accent else WalletColors.surface
+    val fg = when {
+        !enabled -> WalletColors.textSecondary
+        filled -> androidx.compose.ui.graphics.Color.White
+        else -> WalletColors.textPrimary
+    }
+    val base = modifier
+        .clip(shape)
+        .background(bg)
+        .then(if (filled && enabled) Modifier else Modifier.border(1.dp, WalletColors.outline, shape))
+    val withClick = if (enabled && onClick != null) base.clickable(onClick = onClick) else base
     Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(8.dp))
-            .border(1.dp, WalletColors.outline, RoundedCornerShape(8.dp))
-            .padding(vertical = 10.dp),
+        modifier = withClick.padding(vertical = 12.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Text(text = label, color = WalletColors.textSecondary, fontSize = 12.sp)
+        Text(
+            text = label,
+            color = fg,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
+            softWrap = false,
+        )
     }
 }
 

@@ -21,6 +21,7 @@ import xyz.wallet.toolkit.sample.nav.Route
 import xyz.wallet.toolkit.sample.state.LocalWalletSession
 import xyz.wallet.toolkit.sample.state.SecureWalletStorageRuntime
 import xyz.wallet.toolkit.sample.theme.WalletColors
+import xyz.wallet.toolkit.sample.ui.BackBar
 import xyz.wallet.toolkit.sample.ui.PhoneFrame
 import xyz.wallet.toolkit.sample.ui.PrimaryButton
 
@@ -49,6 +50,12 @@ fun CreateWalletScreen(navigator: Navigator) {
     }
 
     PhoneFrame {
+        BackBar(
+            onBack = {
+                if (step == Step.Intro) navigator.pop() else step = Step.Intro
+            },
+            title = "Create wallet",
+        )
         Crossfade(targetState = step) { current ->
             when (current) {
                 Step.Intro -> IntroStep(
