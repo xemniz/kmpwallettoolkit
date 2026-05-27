@@ -11,8 +11,8 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.unit.dp
+import xyz.wallet.toolkit.sample.platform.rememberClipboardTextHandler
 import xyz.wallet.toolkit.sample.theme.WalletColors
 
 /**
@@ -40,7 +40,7 @@ fun RecipientField(
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val clipboard = LocalClipboardManager.current
+    val clipboard = rememberClipboardTextHandler()
     val trimmed = value.trim()
     val isInvalid = trimmed.isNotEmpty() && validateRecipient(trimmed) == ValidationResult.Invalid
 
@@ -63,7 +63,7 @@ fun RecipientField(
         ) {
             OutlinedButton(
                 onClick = {
-                    val pasted = clipboard.getText()?.text
+                    val pasted = clipboard.getText()
                     if (pasted != null) onValueChange(pasted)
                 },
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = WalletColors.textPrimary),

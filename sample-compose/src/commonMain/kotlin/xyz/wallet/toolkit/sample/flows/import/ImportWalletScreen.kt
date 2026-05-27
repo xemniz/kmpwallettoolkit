@@ -1,9 +1,11 @@
 package xyz.wallet.toolkit.sample.flows.import
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.MaterialTheme
@@ -97,14 +99,23 @@ fun ImportWalletScreen(navigator: Navigator) {
 
 @Composable
 private fun SourcePickerTabs() {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        SourceTab(label = "Phrase", selected = true, enabled = true)
-        SourceTab(label = "Private key", selected = false, enabled = false)
-        SourceTab(label = "Keystore", selected = false, enabled = false)
-        SourceTab(label = "Watch-only", selected = false, enabled = false)
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            SourceTab(label = "Phrase", selected = true, enabled = true)
+            SourceTab(label = "Private key", selected = false, enabled = false)
+            SourceTab(label = "Keystore", selected = false, enabled = false)
+            SourceTab(label = "Watch-only", selected = false, enabled = false)
+        }
+        Text(
+            text = "Private key, keystore, and watch-only import are coming soon.",
+            color = WalletColors.textSecondary,
+            style = MaterialTheme.typography.labelMedium,
+        )
     }
 }
 
@@ -115,19 +126,7 @@ private fun SourceTab(label: String, selected: Boolean, enabled: Boolean) {
         onClick = { /* no-op: Phrase is the only wired path; others are Coming soon */ },
         enabled = enabled,
         label = {
-            if (enabled) {
-                Text(text = label)
-            } else {
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(text = label)
-                    Text(
-                        text = "Coming soon",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = WalletColors.textSecondary,
-                        modifier = Modifier.padding(start = 4.dp),
-                    )
-                }
-            }
+            Text(text = label, maxLines = 1)
         },
         colors = FilterChipDefaults.filterChipColors(
             containerColor = WalletColors.surface,

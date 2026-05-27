@@ -105,6 +105,7 @@ fun HomeScreen(navigator: Navigator, vm: HomeViewModel = koinInject()) {
             sendEnabled = portfolio is PortfolioState.Value && hasNativeBalance(portfolio),
             onSend = { navigator.push(Route.Send(chainId = ui.selectedChainId)) },
             onReceive = { showReceive = true },
+            onSwap = { navigator.push(Route.Swap(chainId = ui.selectedChainId)) },
         )
 
         Spacer(Modifier.height(20.dp))
@@ -281,6 +282,7 @@ private fun ActionTiles(
     sendEnabled: Boolean,
     onSend: () -> Unit,
     onReceive: () -> Unit,
+    onSwap: () -> Unit,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -298,7 +300,11 @@ private fun ActionTiles(
             modifier = Modifier.weight(1f),
             onClick = onReceive,
         )
-        ActionTile(label = "Swap", modifier = Modifier.weight(1f), enabled = false)
+        ActionTile(
+            label = "Swap",
+            modifier = Modifier.weight(1f),
+            onClick = onSwap,
+        )
         ActionTile(label = "Buy", modifier = Modifier.weight(1f), enabled = false)
     }
 }

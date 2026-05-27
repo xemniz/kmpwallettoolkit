@@ -7,6 +7,9 @@ plugins {
 }
 
 kotlin {
+    // sample-compose uses expect/actual adapters for host platform services.
+    compilerOptions.freeCompilerArgs.add("-Xexpect-actual-classes")
+
     androidLibrary {
         namespace = "xyz.wallet.toolkit.sample"
         compileSdk = 36
@@ -41,8 +44,15 @@ kotlin {
             implementation(libs.ktor.client.content.negotiation)
             implementation(libs.ktor.serialization.kotlinx.json)
             implementation(libs.androidx.lifecycle.viewmodel)
+            implementation(libs.androidx.navigation3.runtime)
             implementation(libs.koin.core)
             implementation(libs.koin.compose)
+        }
+        androidMain.dependencies {
+            implementation(libs.androidx.navigation3.ui)
+        }
+        commonTest.dependencies {
+            implementation(kotlin("test"))
         }
         iosMain.dependencies {
             implementation(libs.ktor.client.darwin)

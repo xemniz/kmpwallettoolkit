@@ -1,31 +1,46 @@
 package xyz.wallet.toolkit.sample.nav
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.navigation3.runtime.NavBackStack
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 
-class Navigator(initial: Route) {
-    private val stack: MutableState<List<Route>> = mutableStateOf(listOf(initial))
+class Navigator(
+    private val backStack: NavBackStack<Route>,
+) {
 
     val current: Route
-        get() = stack.value.last()
+        get() = backStack.last()
 
     fun push(route: Route) {
-        stack.value = stack.value + route
+        backStack.add(route)
     }
 
     fun pop(): Boolean {
-        if (stack.value.size <= 1) return false
-        stack.value = stack.value.dropLast(1)
+        if (backStack.size <= 1) return false
+        backStack.removeLastOrNull()
         return true
     }
 
     fun replace(route: Route) {
-        stack.value = listOf(route)
+        backStack.clear()
+        backStack.add(route)
     }
 }
 
 @Composable
-fun rememberNavigator(initial: Route = Route.Welcome): Navigator =
-    remember { Navigator(initial) }
+fun rememberRouteBackStack(vararg elements: Route): NavBackStack<Route> =
+    rememberSaveable(saver = RouteBackStackSaver) {
+        NavBackStack(*elements)
+    }
+
+private val RouteBackStackSaver: Saver<NavBackStack<Route>, String> = Saver(
+    save = { backStack -> Json.encodeToString(backStack.toList()) },
+    restore = { raw ->
+        val restored = runCatching { Json.decodeFromString<List<Route>>(raw) }
+            .getOrElse { listOf(Route.Welcome) }
+        NavBackStack(*restored.toTypedArray())
+    },
+)

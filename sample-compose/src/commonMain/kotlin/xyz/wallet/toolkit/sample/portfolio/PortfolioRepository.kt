@@ -11,6 +11,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import xyz.wallet.toolkit.core.SupportedChain
+import xyz.wallet.toolkit.sample.format.EthFormat
+import xyz.wallet.toolkit.sample.rpc.RpcClientFactory
 
 /**
  * App-scoped portfolio cache. Registered as a Koin single so every ViewModel
@@ -46,10 +48,8 @@ class PortfolioRepository(
         _state.update { it + (chain.id to PortfolioState.Loading) }
         jobs[chain.id] = scope.launch {
             val next = try {
-                PortfolioState.Value(client.fetchPortfolio(address, chain))
+                PortfolioState.Value(withNativeBalanceFallback(client.fetchPortfolio(address, chain), address, chain))
             } catch (t: Throwable) {
-                // CLAUDE.md §4.1: never propagate t.message — Zerion echoes
-                // the wallet address into error bodies.
                 PortfolioState.Error("Couldn't load portfolio")
             }
             _state.update { it + (chain.id to next) }
@@ -65,5 +65,39 @@ class PortfolioRepository(
         jobs.values.forEach { it.cancel() }
         jobs.clear()
         _state.value = emptyMap()
+    }
+
+    private suspend fun withNativeBalanceFallback(
+        snapshot: PortfolioSnapshot,
+        address: String,
+        chain: SupportedChain,
+    ): PortfolioSnapshot {
+        val nativeBalance = runCatching {
+            EthFormat.weiHexToEthDecimal(
+                RpcClientFactory.forChain(chain).getBalance(address, "latest"),
+            )
+        }.getOrNull()
+
+        if (nativeBalance.isNullOrBlank() || nativeBalance == "—" || nativeBalance == "0") {
+            return snapshot
+        }
+
+        val existingNative = snapshot.native
+        val native = TokenPosition(
+            symbol = chain.ticker,
+            name = "${chain.displayName} ${chain.ticker}",
+            quantityDecimal = nativeBalance,
+            valueUsd = existingNative?.valueUsd,
+            iconUrl = existingNative?.iconUrl,
+            isNative = true,
+        )
+
+        val tokens = if (existingNative == null) {
+            listOf(native) + snapshot.tokens
+        } else {
+            snapshot.tokens.map { token -> if (token.isNative) native else token }
+        }
+
+        return snapshot.copy(tokens = tokens)
     }
 }

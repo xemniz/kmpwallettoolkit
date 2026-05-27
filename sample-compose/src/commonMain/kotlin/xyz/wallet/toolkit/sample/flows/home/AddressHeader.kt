@@ -13,10 +13,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
+import xyz.wallet.toolkit.sample.platform.rememberClipboardTextHandler
 import xyz.wallet.toolkit.sample.theme.WalletColors
 import xyz.wallet.toolkit.sample.ui.MonoText
 
@@ -34,7 +33,7 @@ fun AddressHeader(
 ) {
     val lower = address.lowercase()
     val shortened = shorten(lower)
-    val clipboard = LocalClipboardManager.current
+    val clipboard = rememberClipboardTextHandler()
     var copied by remember { mutableStateOf(false) }
 
     if (copied) {
@@ -48,7 +47,7 @@ fun AddressHeader(
         modifier = modifier
             .fillMaxWidth()
             .clickable {
-                clipboard.setText(AnnotatedString(lower))
+                clipboard.setText(lower)
                 copied = true
             },
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -64,5 +63,5 @@ fun AddressHeader(
 
 private fun shorten(addr: String): String {
     if (addr.length < 10) return addr
-    return "${addr.take(6)}…${addr.takeLast(4)}"
+    return "${addr.take(6)}...${addr.takeLast(4)}"
 }

@@ -38,7 +38,7 @@ fun MnemonicPasteField(
             singleLine = false,
             textStyle = MonoTextStyle,
             keyboardOptions = KeyboardOptions(
-                autoCorrect = false,
+                autoCorrectEnabled = false,
                 capitalization = KeyboardCapitalization.None,
                 keyboardType = KeyboardType.Ascii,
             ),

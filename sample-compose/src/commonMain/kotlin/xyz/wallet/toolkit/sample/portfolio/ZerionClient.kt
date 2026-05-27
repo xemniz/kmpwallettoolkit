@@ -10,6 +10,8 @@ import io.ktor.http.HttpHeaders
 import io.ktor.serialization.kotlinx.json.json
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import xyz.wallet.toolkit.core.SupportedChain
@@ -37,18 +39,23 @@ class ZerionClient(
     private val authHeader: String =
         "Basic " + Base64.encode("$apiKey:".encodeToByteArray())
 
+    // Zerion's free tier throttles parallel requests from the same key; serialize
+    // them here so concurrent chain fetches don't race each other into a 429.
+    private val requestMutex = Mutex()
+
     suspend fun fetchPortfolio(address: String, chain: SupportedChain): PortfolioSnapshot {
         val chainId = chain.toZerionChainId()
-        val response: PositionsResponse = http
-            .get("https://api.zerion.io/v1/wallets/${address.lowercase()}/positions/") {
+        val response: PositionsResponse = requestMutex.withLock {
+            http.get("https://api.zerion.io/v1/wallets/${address.lowercase()}/positions/") {
                 header(HttpHeaders.Authorization, authHeader)
                 header(HttpHeaders.Accept, "application/json")
                 parameter("filter[chain_ids]", chainId)
-                parameter("filter[position_types]", "wallet")
+                parameter("filter[positions]", "only_simple")
                 parameter("currency", "usd")
                 parameter("sort", "-value")
-            }
-            .body()
+                parameter("sync", "true")
+            }.body()
+        }
         return response.toSnapshot(chainId)
     }
 

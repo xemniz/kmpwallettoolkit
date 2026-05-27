@@ -1,11 +1,15 @@
 package xyz.wallet.toolkit.sample.ui
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -22,13 +26,20 @@ fun PhoneFrame(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    Column(
+    Surface(
         modifier = modifier
-            .fillMaxSize()
-            .background(WalletColors.surface)
-            .padding(horizontal = 20.dp, vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        content = content,
-    )
+            .fillMaxSize(),
+        color = WalletColors.surface,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.safeDrawing)
+                .imePadding()
+                .padding(horizontal = 20.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            content = content,
+        )
+    }
 }
