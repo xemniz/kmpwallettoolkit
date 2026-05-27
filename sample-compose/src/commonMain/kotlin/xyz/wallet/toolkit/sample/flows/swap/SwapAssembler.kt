@@ -2,8 +2,8 @@ package xyz.wallet.toolkit.sample.flows.swap
 
 import xyz.wallet.toolkit.core.SupportedChain
 import xyz.wallet.toolkit.core.Wallet
-import xyz.wallet.toolkit.evm.Eip1559Transaction
-import xyz.wallet.toolkit.evm.signEip1559Transaction
+import xyz.wallet.toolkit.evm.EvmTransaction
+import xyz.wallet.toolkit.evm.signEvmTransaction
 import xyz.wallet.toolkit.rpc.RpcCall
 import xyz.wallet.toolkit.rpc.RpcClient
 import xyz.wallet.toolkit.rpc.RpcException
@@ -58,19 +58,15 @@ class SwapAssembler(
             }
 
             if (compareDecimal(currentAllowance, quote.sellAmountRaw) < 0) {
-                val approveTx = Eip1559Transaction(
-                    chainId = chain.id,
-                    to = sellAddress,
-                    valueWei = "0",
-                    maxFeePerGasWei = defaultMaxFeeFor(chain),
-                    maxPriorityFeePerGasWei = defaultPriorityFor(chain),
-                    gasLimit = "80000",
+                val approveTx = approvalTransactionFor(
+                    chain = chain,
+                    sellAddress = sellAddress,
+                    spender = spender,
                     nonce = nonce,
-                    dataHex = Erc20.approveCallData(spender, Erc20.MAX_UINT256_DECIMAL),
-                    accessList = emptyList(),
+                    gasPriceWei = quote.transaction.gasPriceWei,
                 )
                 val signed = try {
-                    wallet.signEip1559Transaction(chain, approveTx)
+                    wallet.signEvmTransaction(chain, approveTx)
                 } catch (_: Throwable) {
                     return SwapResult.Failure(SwapFailure.SigningFailed, "Signing approve failed.")
                 }
@@ -86,20 +82,10 @@ class SwapAssembler(
         }
 
         // Step 2: the swap transaction.
-        val swapTx = Eip1559Transaction(
-            chainId = chain.id,
-            to = quote.transaction.to.lowercase(),
-            valueWei = quote.transaction.valueWei,
-            maxFeePerGasWei = defaultMaxFeeFor(chain),
-            maxPriorityFeePerGasWei = defaultPriorityFor(chain),
-            gasLimit = quote.transaction.gasLimit,
-            nonce = nonce,
-            dataHex = quote.transaction.dataHex,
-            accessList = emptyList(),
-        )
+        val swapTx = quote.transaction.toSwapTransaction(chain, nonce)
 
         val signed = try {
-            wallet.signEip1559Transaction(chain, swapTx)
+            wallet.signEvmTransaction(chain, swapTx)
         } catch (_: Throwable) {
             return SwapResult.Failure(SwapFailure.SigningFailed, "Signing swap failed.")
         }
@@ -121,6 +107,38 @@ class SwapAssembler(
         return Erc20.decodeUint256Decimal(hex) ?: "0"
     }
 }
+
+// 0x AllowanceHolder quotes currently return a gas-price transaction object
+// (`gasPrice`, `gas`, `to`, `data`, `value`). Preserve that shape so the
+// native signer signs the transaction the quote service prepared.
+internal fun QuoteTransaction.toSwapTransaction(
+    chain: SupportedChain,
+    nonce: Long,
+): EvmTransaction = EvmTransaction(
+    chainId = chain.id,
+    to = to.lowercase(),
+    valueWei = valueWei,
+    gasPriceWei = gasPriceWei,
+    gasLimit = gasLimit,
+    nonce = nonce,
+    dataHex = dataHex,
+)
+
+internal fun approvalTransactionFor(
+    chain: SupportedChain,
+    sellAddress: String,
+    spender: String,
+    nonce: Long,
+    gasPriceWei: String,
+): EvmTransaction = EvmTransaction(
+    chainId = chain.id,
+    to = sellAddress.lowercase(),
+    valueWei = "0",
+    gasPriceWei = gasPriceWei,
+    gasLimit = "80000",
+    nonce = nonce,
+    dataHex = Erc20.approveCallData(spender, Erc20.MAX_UINT256_DECIMAL),
+)
 
 /**
  * Parse a `0x`-prefixed hex integer as a Long. Returns null on malformed
@@ -151,18 +169,6 @@ private fun bytesToHex0x(bytes: ByteArray): String {
         chars[i * 2 + 1] = HEX_CHARS[v and 0x0F]
     }
     return "0x" + chars.concatToString()
-}
-
-// Rough, per-chain defaults. Base is cheap; Ethereum mainnet is not. These
-// are showcase-grade — a production app would pull from eth_feeHistory.
-private fun defaultMaxFeeFor(chain: SupportedChain): String = when (chain) {
-    SupportedChain.Base -> "200000000"         // 0.2 gwei
-    else -> "30000000000"                      // 30 gwei
-}
-
-private fun defaultPriorityFor(chain: SupportedChain): String = when (chain) {
-    SupportedChain.Base -> "100000000"         // 0.1 gwei
-    else -> "1500000000"                       // 1.5 gwei
 }
 
 sealed class SwapFailure {

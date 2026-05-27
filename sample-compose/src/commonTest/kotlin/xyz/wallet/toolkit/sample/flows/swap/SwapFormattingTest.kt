@@ -1,5 +1,6 @@
 package xyz.wallet.toolkit.sample.flows.swap
 
+import xyz.wallet.toolkit.core.SupportedChain
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -26,5 +27,18 @@ class SwapFormattingTest {
         assertEquals("0.000001", rawToAmount("1", 6))
         assertEquals("123", rawToAmount("123000000", 6))
     }
-}
 
+    @Test
+    fun nativeTokenUsesZeroExV2SentinelAddress() {
+        val eth = TokenRef(
+            symbol = "ETH",
+            name = "Ether",
+            address = null,
+            decimals = 18,
+            chain = SupportedChain.Ethereum,
+            iconUrl = null,
+        )
+
+        assertEquals("0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE", eth.addressForZeroEx())
+    }
+}

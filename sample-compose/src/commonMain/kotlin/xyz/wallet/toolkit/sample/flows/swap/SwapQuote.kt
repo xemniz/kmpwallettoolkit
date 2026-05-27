@@ -15,6 +15,7 @@ data class QuoteTransaction(
     val dataHex: String,
     val valueWei: String,
     val gasLimit: String,
+    val gasPriceWei: String,
 )
 
 data class AllowanceIssue(val spender: String)

@@ -8,15 +8,18 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -60,6 +63,7 @@ private val homeChains: List<SupportedChain> =
  * a non-zero native balance — prevents entering the send flow with no ETH
  * to pay for gas.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(navigator: Navigator, vm: HomeViewModel = koinInject()) {
     val session = LocalWalletSession.current
@@ -89,35 +93,48 @@ fun HomeScreen(navigator: Navigator, vm: HomeViewModel = koinInject()) {
             ?: SupportedChain.Ethereum
         val portfolio = ui.portfolioFor(ui.selectedChainId)
 
-        TopBar(
-            address = wallet.address(SupportedChain.Ethereum).lowercase(),
-            chain = selectedChain,
-            onChainClick = { showChainPicker = true },
-        )
+        PullToRefreshBox(
+            isRefreshing = portfolio is PortfolioState.Loading,
+            onRefresh = { vm.refresh(wallet, selectedChain) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f),
+        ) {
+            Column(
+                modifier = Modifier.fillMaxSize(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                TopBar(
+                    address = wallet.address(SupportedChain.Ethereum).lowercase(),
+                    chain = selectedChain,
+                    onChainClick = { showChainPicker = true },
+                )
 
-        Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(8.dp))
 
-        TotalBalance(portfolio = portfolio)
+                TotalBalance(portfolio = portfolio)
 
-        Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(16.dp))
 
-        ActionTiles(
-            sendEnabled = portfolio is PortfolioState.Value && hasNativeBalance(portfolio),
-            onSend = { navigator.push(Route.Send(chainId = ui.selectedChainId)) },
-            onReceive = { showReceive = true },
-            onSwap = { navigator.push(Route.Swap(chainId = ui.selectedChainId)) },
-        )
+                ActionTiles(
+                    sendEnabled = portfolio is PortfolioState.Value && hasNativeBalance(portfolio),
+                    onSend = { navigator.push(Route.Send(chainId = ui.selectedChainId)) },
+                    onReceive = { showReceive = true },
+                    onSwap = { navigator.push(Route.Swap(chainId = ui.selectedChainId)) },
+                )
 
-        Spacer(Modifier.height(20.dp))
+                Spacer(Modifier.height(20.dp))
 
-        AssetsHeader(count = (portfolio as? PortfolioState.Value)?.snapshot?.tokens?.size)
+                AssetsHeader(count = (portfolio as? PortfolioState.Value)?.snapshot?.tokens?.size)
 
-        PortfolioList(
-            chain = selectedChain,
-            entry = portfolio,
-            onRetry = { vm.refresh(wallet, selectedChain) },
-            modifier = Modifier.weight(1f),
-        )
+                PortfolioList(
+                    chain = selectedChain,
+                    entry = portfolio,
+                    onRetry = { vm.refresh(wallet, selectedChain) },
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
 
         TextButton(
             onClick = { showSignOut = true },

@@ -85,6 +85,7 @@ private data class TxResponse(
     val data: String? = null,
     val value: String? = null,
     val gas: String? = null,
+    val gasPrice: String? = null,
 )
 
 @Serializable
@@ -106,6 +107,7 @@ private fun QuoteResponse.toDomain(sell: TokenRef, buy: TokenRef): SwapQuote {
             dataHex = tx.data ?: error("0x response missing tx.data"),
             valueWei = tx.value ?: "0",
             gasLimit = tx.gas ?: "250000",
+            gasPriceWei = tx.gasPrice ?: error("0x response missing tx.gasPrice"),
         ),
         allowanceIssue = issues?.allowance?.spender?.let { AllowanceIssue(spender = it) },
     )
