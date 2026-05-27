@@ -4,6 +4,9 @@ plugins {
 }
 
 kotlin {
+    // wallet-core intentionally exposes Trust Wallet Core through expect/actual platform seams.
+    compilerOptions.freeCompilerArgs.add("-Xexpect-actual-classes")
+
     jvm()
     iosX64()
     iosArm64()
@@ -28,6 +31,5 @@ kotlin {
         }
     }
 }
-
 
 
