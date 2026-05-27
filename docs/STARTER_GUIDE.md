@@ -4,6 +4,14 @@ This guide is the intended first path for an app team using `kmp-wallet-toolkit`
 
 ## 1. Pick The Layer
 
+Before building, configure GitHub Packages credentials locally:
+
+```properties
+# ~/.gradle/gradle.properties
+gpr.user=xemniz
+gpr.key=<classic-token-with-read:packages>
+```
+
 Use `wallet-core` when you need wallet lifecycle and addresses:
 
 - `WalletKit`

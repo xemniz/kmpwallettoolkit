@@ -32,6 +32,16 @@ The signing backend is intentionally behind a `WalletEngine` boundary. Android u
 
 ## Quick Start
 
+### Local GitHub Packages Credentials
+
+Trust Wallet Core is resolved from GitHub Packages. Keep those credentials outside the repo in your user Gradle properties file:
+
+```properties
+# ~/.gradle/gradle.properties
+gpr.user=xemniz
+gpr.key=<classic-token-with-read:packages>
+```
+
 Create or import a wallet with the high-level core facade:
 
 ```kotlin
