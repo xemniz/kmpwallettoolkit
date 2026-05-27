@@ -1,30 +1,43 @@
 # sample-compose
 
-Kotlin Multiplatform Compose shared UI module for `wallet-core`.
+Shared Compose Multiplatform starter wallet UI for `kmp-wallet-toolkit`.
 
-Uses `org.jetbrains.kotlin.multiplatform`, `com.android.kotlin.multiplatform.library`,
-and `org.jetbrains.kotlin.plugin.compose` to share Compose UI across Android and iOS.
+This module is the reference consumer of the toolkit modules. It is not a production wallet by itself; it is the fastest way to see how a KMM wallet can be assembled from the library surface.
 
-## Structure
+## Hosts
 
-- `src/commonMain/` — Shared Compose UI (`WalletSampleApp`)
-- `src/iosMain/` — iOS entry point (`MainViewController`)
-- `:sample-app` — Android application host (`MainActivity`)
+- Android: `:sample-app`
+- iOS: `iosApp/iosApp.xcodeproj`
 
-## What it does
+## Current Flow
 
-- Single screen with one button.
-- On tap, calls `Wallet.createWithTrustWalletCore()` and derives an Ethereum address.
-- Shows mnemonic + address on success, or the error message on failure.
-- Lists all registered chains from `ChainRegistry`.
+- welcome screen
+- create wallet flow with mnemonic confirmation
+- import wallet flow with BIP-39 surface validation
+- secure mnemonic persistence through host-provided storage
+- home screen with active wallet address and portfolio hooks
+- send flow with EIP-1559 transaction assembly/signing path
+- transaction status screen backed by receipt polling
+- swap flow with token search, quote, and transaction assembly work in progress
 
-## Run (Android)
+## Configuration
+
+Copy `src/commonMain/kotlin/xyz/wallet/toolkit/sample/secrets/Secrets.kt.template` to `Secrets.kt` and fill in any provider keys or RPC URLs needed by the sample.
+
+`Secrets.kt` is intentionally not committed. Keep API keys and RPC credentials out of source control.
+
+## Run Android
 
 ```bash
 ./gradlew :sample-app:installDebug
 ```
 
-## Run (iOS)
+## Run iOS
 
-Open `iosApp/iosApp.xcodeproj` in Xcode, select a simulator, and press Run.
-The Xcode build phase automatically calls Gradle to compile the `SampleCompose` framework.
+Open `iosApp/iosApp.xcodeproj` in Xcode, select a simulator, and press Run. The Xcode build phase compiles the shared `SampleCompose` framework.
+
+## Verify
+
+```bash
+./gradlew :sample-compose:allTests :sample-app:assembleDebug
+```
