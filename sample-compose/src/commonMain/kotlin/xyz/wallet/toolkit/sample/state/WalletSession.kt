@@ -12,7 +12,7 @@ import xyz.wallet.toolkit.core.Wallet
  * Intentionally NOT a data class: auto-generated `toString()` would invoke
  * `Wallet.toString()` and risk leaking mnemonic bytes (CLAUDE.md §4.1).
  * The hand-rolled `toString()` below prints the literal "REDACTED" when a
- * wallet is present and never references `wallet.mnemonic`.
+ * wallet is present and never references `wallet.exportMnemonic()`.
  *
  * Portfolio state lives in Koin (see `PortfolioRepository`), not here — a
  * repository owned by DI is the right scope for data that must survive

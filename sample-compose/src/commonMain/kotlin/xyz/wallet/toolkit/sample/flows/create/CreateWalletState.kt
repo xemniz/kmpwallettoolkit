@@ -10,7 +10,7 @@ import xyz.wallet.toolkit.core.Wallet
  * In-memory state holder for the Create-wallet flow.
  *
  * Intentionally NOT a data class: auto-generated `toString()` would expose the
- * stored `Wallet.mnemonic` via `Wallet.toString()` and leak the confirm-challenge
+ * stored `Wallet.exportMnemonic()` via `Wallet.toString()` and leak the confirm-challenge
  * word list. The hand-rolled `toString()` below redacts both (CLAUDE.md §4.1).
  */
 class CreateWalletState {

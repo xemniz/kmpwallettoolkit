@@ -1,0 +1,93 @@
+name: Publish Maven Central
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Toolkit version to publish
+        required: true
+        default: 0.1.0-alpha01
+      auto_release:
+        description: Automatically release the Central Portal deployment after validation
+        required: true
+        type: boolean
+        default: false
+
+jobs:
+  publish:
+    runs-on: macos-15
+    env:
+      GPR_USER: ${{ secrets.TRUST_WALLET_GPR_USER }}
+      GPR_KEY: ${{ secrets.TRUST_WALLET_GPR_KEY }}
+      ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+      ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+      ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_IN_MEMORY_KEY }}
+      ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.SIGNING_IN_MEMORY_KEY_ID }}
+      ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_IN_MEMORY_KEY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Verify toolkit release gate
+        run: |
+          ./gradlew \
+            :wallet-utils:allTests \
+            :wallet-core:allTests \
+            :wallet-evm:allTests \
+            :wallet-rpc:allTests \
+            :wallet-toolkit-gradle-plugin:compileKotlin \
+            :wallet-core:compileKotlinIosX64 \
+            :wallet-core:compileKotlinJvm
+
+      - name: Publish locally for consumer smoke
+        run: |
+          ./gradlew -PwalletToolkitVersion=${{ inputs.version }} \
+            :trustwallet-core-proto:publishToMavenLocal \
+            :trustwallet-core-android:publishToMavenLocal \
+            :trustwallet-core-ios:publishToMavenLocal \
+            :wallet-toolkit-gradle-plugin:publishToMavenLocal \
+            :wallet-utils:publishToMavenLocal \
+            :wallet-core:publishToMavenLocal \
+            :wallet-evm:publishToMavenLocal \
+            :wallet-rpc:publishToMavenLocal
+
+      - name: Verify standalone Gradle consumer
+        run: |
+          ./gradlew -p consumer-smoke -PwalletToolkitVersion=${{ inputs.version }} \
+            :compileAndroidMain \
+            :compileKotlinIosSimulatorArm64 \
+            :iosSimulatorArm64Test
+
+      - name: Upload Maven Central deployment
+        if: ${{ !inputs.auto_release }}
+        run: |
+          ./gradlew -PwalletToolkitVersion=${{ inputs.version }} \
+            :trustwallet-core-proto:publishToMavenCentral \
+            :trustwallet-core-android:publishToMavenCentral \
+            :trustwallet-core-ios:publishToMavenCentral \
+            :wallet-toolkit-gradle-plugin:publishToMavenCentral \
+            :wallet-utils:publishToMavenCentral \
+            :wallet-core:publishToMavenCentral \
+            :wallet-evm:publishToMavenCentral \
+            :wallet-rpc:publishToMavenCentral \
+            --no-configuration-cache
+
+      - name: Publish and release Maven Central deployment
+        if: ${{ inputs.auto_release }}
+        run: |
+          ./gradlew -PwalletToolkitVersion=${{ inputs.version }} \
+            :trustwallet-core-proto:publishAndReleaseToMavenCentral \
+            :trustwallet-core-android:publishAndReleaseToMavenCentral \
+            :trustwallet-core-ios:publishAndReleaseToMavenCentral \
+            :wallet-toolkit-gradle-plugin:publishAndReleaseToMavenCentral \
+            :wallet-utils:publishAndReleaseToMavenCentral \
+            :wallet-core:publishAndReleaseToMavenCentral \
+            :wallet-evm:publishAndReleaseToMavenCentral \
+            :wallet-rpc:publishAndReleaseToMavenCentral \
+            --no-configuration-cache

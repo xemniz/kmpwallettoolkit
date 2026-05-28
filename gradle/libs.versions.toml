@@ -11,6 +11,8 @@ kotlinxSerializationJson = "1.9.0"
 ktor = "3.3.0"
 okio = "3.16.0"
 trustWalletCore = "4.6.0"
+walletToolkit = "0.1.0-alpha01"
+protobufJavalite = "3.22.3"
 coroutines = "1.10.2"
 composeMultiplatform = "1.10.2"
 androidxActivityCompose = "1.11.0"
@@ -19,6 +21,7 @@ androidxSecurityCrypto = "1.1.0-alpha06"
 androidxLifecycle = "2.9.0"
 koin = "4.0.3"
 nav3Core = "1.0.0"
+vanniktechMavenPublish = "0.36.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -35,8 +38,17 @@ ktor-client-mock = { group = "io.ktor", name = "ktor-client-mock", version.ref =
 ktor-client-okhttp = { group = "io.ktor", name = "ktor-client-okhttp", version.ref = "ktor" }
 ktor-client-darwin = { group = "io.ktor", name = "ktor-client-darwin", version.ref = "ktor" }
 okio = { group = "com.squareup.okio", name = "okio", version.ref = "okio" }
-trust-wallet-core = { group = "com.trustwallet", name = "wallet-core", version.ref = "trustWalletCore" }
+protobuf-javalite = { group = "com.google.protobuf", name = "protobuf-javalite", version.ref = "protobufJavalite" }
+trust-wallet-core = { group = "io.github.xemniz", name = "trustwallet-core-android", version.ref = "trustWalletCore" }
+trust-wallet-core-ios = { group = "io.github.xemniz", name = "trustwallet-core-ios", version.ref = "trustWalletCore" }
+trust-wallet-core-upstream = { group = "com.trustwallet", name = "wallet-core", version.ref = "trustWalletCore" }
+trust-wallet-core-proto = { group = "io.github.xemniz", name = "trustwallet-core-proto", version.ref = "trustWalletCore" }
+trust-wallet-core-proto-upstream = { group = "com.trustwallet", name = "wallet-core-proto", version.ref = "trustWalletCore" }
+wallet-toolkit-core-maven = { group = "io.github.xemniz", name = "wallet-core", version.ref = "walletToolkit" }
+wallet-toolkit-evm-maven = { group = "io.github.xemniz", name = "wallet-evm", version.ref = "walletToolkit" }
+wallet-toolkit-rpc-maven = { group = "io.github.xemniz", name = "wallet-rpc", version.ref = "walletToolkit" }
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutines" }
+kotlin-gradle-plugin = { group = "org.jetbrains.kotlin", name = "kotlin-gradle-plugin", version.ref = "kotlin" }
 androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "androidxActivityCompose" }
 androidx-security-crypto = { group = "androidx.security", name = "security-crypto", version.ref = "androidxSecurityCrypto" }
 androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
@@ -60,6 +72,9 @@ androidx-navigation3-ui = { module = "androidx.navigation3:navigation3-ui", vers
 android-application = { id = "com.android.application", version.ref = "agp" }
 android-kotlin-multiplatform-library = { id = "com.android.kotlin.multiplatform.library", version.ref = "agp" }
 kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 compose-multiplatform = { id = "org.jetbrains.compose", version.ref = "composeMultiplatform" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+vanniktech-maven-publish = { id = "com.vanniktech.maven.publish", version.ref = "vanniktechMavenPublish" }
+kotlin-wallet-toolkit-ios = { id = "io.github.xemniz.wallet-toolkit.ios", version.ref = "walletToolkit" }

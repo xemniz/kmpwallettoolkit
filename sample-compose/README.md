@@ -4,6 +4,8 @@ Shared Compose Multiplatform starter wallet UI for `kmp-wallet-toolkit`.
 
 This module is the reference consumer of the toolkit modules. It is not a production wallet by itself; it is the fastest way to see how a KMM wallet can be assembled from the library surface.
 
+By default the sample depends on local project modules. To validate the released client setup, run the same sample code with `-PwalletToolkitDependencyMode=maven`; that switches `wallet-core`, `wallet-evm`, `wallet-rpc`, and the iOS Trust Wallet Core linker wiring to Maven Central artifacts. No Trust Wallet GitHub Packages credentials are required.
+
 ## Hosts
 
 - Android: `:sample-app`
@@ -32,6 +34,12 @@ Copy `src/commonMain/kotlin/xyz/wallet/toolkit/sample/secrets/Secrets.kt.templat
 ./gradlew :sample-app:installDebug
 ```
 
+Run Android using Maven Central toolkit artifacts:
+
+```bash
+./gradlew -PwalletToolkitDependencyMode=maven :sample-app:installDebug
+```
+
 ## Run iOS
 
 Open `iosApp/iosApp.xcodeproj` in Xcode, select a simulator, and press Run. The Xcode build phase compiles the shared `SampleCompose` framework.
@@ -40,4 +48,13 @@ Open `iosApp/iosApp.xcodeproj` in Xcode, select a simulator, and press Run. The 
 
 ```bash
 ./gradlew :sample-compose:allTests :sample-app:assembleDebug
+```
+
+Verify the sample as a downstream Maven client:
+
+```bash
+./gradlew -PwalletToolkitDependencyMode=maven \
+  :sample-compose:compileAndroidMain \
+  :sample-compose:linkDebugFrameworkIosSimulatorArm64 \
+  :sample-app:assembleDebug
 ```

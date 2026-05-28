@@ -6,11 +6,24 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
 }
 
+val walletToolkitDependencyMode = providers.gradleProperty("walletToolkitDependencyMode")
+    .orElse("project")
+    .get()
+val useMavenWalletToolkit = when (walletToolkitDependencyMode) {
+    "project" -> false
+    "maven" -> true
+    else -> error("walletToolkitDependencyMode must be 'project' or 'maven', got '$walletToolkitDependencyMode'")
+}
+
+if (useMavenWalletToolkit) {
+    pluginManager.apply("io.github.xemniz.wallet-toolkit.ios")
+}
+
 kotlin {
     // sample-compose uses expect/actual adapters for host platform services.
     compilerOptions.freeCompilerArgs.add("-Xexpect-actual-classes")
 
-    androidLibrary {
+    android {
         namespace = "xyz.wallet.toolkit.sample"
         compileSdk = 36
         minSdk = 24
@@ -24,17 +37,29 @@ kotlin {
         iosTarget.binaries.framework {
             baseName = "SampleCompose"
             isStatic = true
-            export(project(":wallet-core"))
-            export(project(":wallet-evm"))
-            export(project(":wallet-rpc"))
+            if (useMavenWalletToolkit) {
+                export(libs.wallet.toolkit.core.maven.get())
+                export(libs.wallet.toolkit.evm.maven.get())
+                export(libs.wallet.toolkit.rpc.maven.get())
+            } else {
+                export(project(":wallet-core"))
+                export(project(":wallet-evm"))
+                export(project(":wallet-rpc"))
+            }
         }
     }
 
     sourceSets {
         commonMain.dependencies {
-            api(project(":wallet-core"))
-            api(project(":wallet-rpc"))
-            api(project(":wallet-evm"))
+            if (useMavenWalletToolkit) {
+                api(libs.wallet.toolkit.core.maven)
+                api(libs.wallet.toolkit.rpc.maven)
+                api(libs.wallet.toolkit.evm.maven)
+            } else {
+                api(project(":wallet-core"))
+                api(project(":wallet-rpc"))
+                api(project(":wallet-evm"))
+            }
             implementation(compose.runtime)
             implementation(compose.foundation)
             implementation(compose.material3)

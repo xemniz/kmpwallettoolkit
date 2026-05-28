@@ -14,8 +14,8 @@ class WalletKitTest {
         val created = kit.createWallet()
         val imported = kit.importWallet("imported mnemonic")
 
-        assertEquals("created mnemonic", created.mnemonic)
-        assertEquals("imported mnemonic", imported.mnemonic)
+        assertEquals("created mnemonic", created.exportMnemonic())
+        assertEquals("imported mnemonic", imported.exportMnemonic())
     }
 
     @Test

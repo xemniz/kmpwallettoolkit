@@ -1,10 +1,16 @@
 package xyz.wallet.toolkit.core
 
 class Wallet private constructor(
-    val mnemonic: String,
+    private val mnemonic: String,
     private val engine: WalletEngine,
 ) {
     fun address(chain: SupportedChain): String = engine.deriveAddress(mnemonic, chain)
+
+    /**
+     * Returns the BIP-39 mnemonic for host-side secure storage or an explicit
+     * user backup flow. Never log or interpolate this value into errors.
+     */
+    fun exportMnemonic(): String = mnemonic
 
     fun signTransaction(chain: SupportedChain, transaction: Transaction): ByteArray {
         return engine.signTransaction(mnemonic = mnemonic, chain = chain, transaction = transaction)
@@ -23,6 +29,8 @@ class Wallet private constructor(
             signingPayloadJson = signingPayloadJson,
         )
     }
+
+    override fun toString(): String = "Wallet(redacted)"
 
     companion object {
         fun create(engine: WalletEngine = UnsupportedWalletEngine()): Wallet {
@@ -46,4 +54,3 @@ class Wallet private constructor(
         }
     }
 }
-

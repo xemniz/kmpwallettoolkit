@@ -1,37 +1,81 @@
 # Release Checklist
 
-Use this checklist before calling a milestone usable by app developers.
+Use this checklist for every Maven Central release.
 
-## Scope
+## Preflight
 
-- Public API examples in `README.md` compile against the current modules.
-- `docs/STARTER_GUIDE.md` matches the sample app's supported flow.
-- Supported targets and chains are documented.
-- Any work-in-progress feature is labeled as such.
-
-## Security
-
-- No mnemonics, private keys, seeds, or raw signing secrets are logged.
-- Host apps store mnemonics only through platform secure storage.
-- Transaction nonces are fetched from RPC and are not generated locally.
-- Signing serialization changes have golden-vector or drift tests.
-- New crypto dependencies have explicit design approval.
+- Confirm the release version, for example `0.1.0-alpha01`.
+- Confirm the Trust Wallet Core wrapper version in `gradle/libs.versions.toml`.
+- Review `docs/TRUST_WALLET_CORE_DISTRIBUTION.md` and verify the upstream XCFramework SHA-256 values still match the release assets.
+- Confirm `settings.gradle.kts` does not require `mavenLocal()` or Trust Wallet GitHub Packages credentials for normal consumer builds.
+- Confirm no credential values appear in source, docs, Gradle output, or shell history snippets copied into the release notes.
 
 ## Verification
 
 ```bash
-./gradlew :wallet-utils:allTests
-./gradlew :wallet-core:allTests
-./gradlew :wallet-evm:allTests
-./gradlew :wallet-rpc:allTests
-./gradlew :sample-compose:allTests :sample-app:assembleDebug
+./gradlew :wallet-utils:allTests \
+  :wallet-core:allTests \
+  :wallet-evm:allTests \
+  :wallet-rpc:allTests \
+  :wallet-toolkit-gradle-plugin:compileKotlin \
+  :wallet-core:compileKotlinIosX64 \
+  :wallet-core:compileKotlinJvm
 ```
 
-## Manual Sample Pass
+```bash
+./gradlew -PwalletToolkitVersion=0.1.0-alpha01 \
+  :trustwallet-core-proto:publishToMavenLocal \
+  :trustwallet-core-android:publishToMavenLocal \
+  :trustwallet-core-ios:publishToMavenLocal \
+  :wallet-toolkit-gradle-plugin:publishToMavenLocal \
+  :wallet-utils:publishToMavenLocal \
+  :wallet-core:publishToMavenLocal \
+  :wallet-evm:publishToMavenLocal \
+  :wallet-rpc:publishToMavenLocal
+```
 
-- Create wallet.
-- Restart and confirm the wallet rehydrates from secure storage.
-- Import wallet.
-- Open home with no optional API credentials configured.
-- Validate send form errors for empty recipient, invalid recipient, and missing RPC config.
-- Submit a testnet transaction only with test funds and confirm the pending/status states.
+```bash
+./gradlew -p consumer-smoke -PwalletToolkitVersion=0.1.0-alpha01 \
+  :compileAndroidMain \
+  :compileKotlinIosSimulatorArm64 \
+  :iosSimulatorArm64Test
+```
+
+## Publish
+
+Publish wrapper artifacts first, then toolkit artifacts:
+
+```bash
+./gradlew -PwalletToolkitVersion=0.1.0-alpha01 \
+  :trustwallet-core-proto:publishToMavenCentral \
+  :trustwallet-core-android:publishToMavenCentral \
+  :trustwallet-core-ios:publishToMavenCentral \
+  :wallet-toolkit-gradle-plugin:publishToMavenCentral \
+  :wallet-utils:publishToMavenCentral \
+  :wallet-core:publishToMavenCentral \
+  :wallet-evm:publishToMavenCentral \
+  :wallet-rpc:publishToMavenCentral \
+  --no-configuration-cache
+```
+
+Release the deployment from Central Portal after validation, or use `publishAndReleaseToMavenCentral` when the release should be automatic.
+
+## Post-Publish
+
+- Run the sample in Maven client mode:
+
+```bash
+./gradlew -PwalletToolkitDependencyMode=maven \
+  :sample-compose:compileAndroidMain \
+  :sample-compose:linkDebugFrameworkIosSimulatorArm64 \
+  :sample-app:assembleDebug
+```
+
+- Install the Android sample in Maven client mode:
+
+```bash
+./gradlew -PwalletToolkitDependencyMode=maven :sample-app:installDebug
+```
+
+- Optionally run `consumer-smoke` against Maven Central after the artifacts are available.
+- Tag the release in Git after Maven Central availability is confirmed.
