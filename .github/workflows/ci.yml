@@ -52,7 +52,7 @@ jobs:
 
       - name: Publish local artifacts
         run: |
-          ./gradlew -PwalletToolkitVersion=0.1.0-alpha01 \
+          ./gradlew -PwalletToolkitVersion=0.1.1 \
             :trustwallet-core-proto:publishToMavenLocal \
             :trustwallet-core-android:publishToMavenLocal \
             :trustwallet-core-ios:publishToMavenLocal \
@@ -64,7 +64,7 @@ jobs:
 
       - name: Verify standalone Gradle consumer
         run: |
-          ./gradlew -p consumer-smoke -PwalletToolkitVersion=0.1.0-alpha01 \
+          ./gradlew -p consumer-smoke -PwalletToolkitVersion=0.1.1 \
             :compileAndroidMain \
             :compileKotlinIosSimulatorArm64 \
             :iosSimulatorArm64Test

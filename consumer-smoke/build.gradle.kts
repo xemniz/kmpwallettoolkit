@@ -5,7 +5,7 @@ plugins {
 }
 
 val walletToolkitVersion = providers.gradleProperty("walletToolkitVersion")
-    .orElse("0.1.0-alpha01")
+    .orElse("0.1.1")
 
 kotlin {
     jvm()

@@ -6,7 +6,7 @@ on:
       version:
         description: Toolkit version to publish
         required: true
-        default: 0.1.0-alpha01
+        default: 0.1.1
       auto_release:
         description: Automatically release the Central Portal deployment after validation
         required: true

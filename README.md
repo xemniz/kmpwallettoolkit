@@ -37,7 +37,7 @@ Released artifacts are available from Maven Central. Consumers do not need Trust
 ```kotlin
 plugins {
     // Required only for KMP modules that declare iOS targets.
-    id("io.github.xemniz.wallet-toolkit.ios") version "0.1.0-alpha01"
+    id("io.github.xemniz.wallet-toolkit.ios") version "0.1.1"
 }
 
 repositories {
@@ -48,19 +48,21 @@ repositories {
 kotlin {
     sourceSets {
         commonMain.dependencies {
-            implementation("io.github.xemniz:wallet-core:0.1.0-alpha01")
-            implementation("io.github.xemniz:wallet-evm:0.1.0-alpha01")
-            implementation("io.github.xemniz:wallet-rpc:0.1.0-alpha01")
+            implementation("io.github.xemniz:wallet-core:0.1.1")
+            implementation("io.github.xemniz:wallet-evm:0.1.1")
+            implementation("io.github.xemniz:wallet-rpc:0.1.1")
         }
     }
 }
 ```
 
+Pin an explicit released version. Do not use `0.1.0`; its Android metadata was published before the Trust Wallet Core republish fix and can leak the upstream `com.trustwallet` dependency.
+
 Use only the modules you need:
 
 - `wallet-core` for wallet creation/import and address derivation.
 - `wallet-evm` for EVM transaction models and signing helpers.
-- `wallet-rpc` for EVM JSON-RPC calls.
+- `wallet-rpc` for EVM JSON-RPC calls. `RpcClient.withDefaults(...)` includes OkHttp for JVM/Android and Darwin for iOS; if you construct `RpcClient` with your own `HttpClient`, provide your own Ktor engine.
 - `wallet-utils` is pulled in transitively by `wallet-core` and `wallet-evm`.
 
 The Gradle plugin is needed only for iOS targets. It resolves the republished Trust Wallet Core XCFrameworks from Maven Central and wires the native linker. Android consumers only need the library dependencies.
@@ -147,6 +149,8 @@ Do not generate transaction nonces locally.
 ## iOS Host Setup
 
 For KMP apps built with Gradle, apply `io.github.xemniz.wallet-toolkit.ios` to the KMP module that declares iOS targets. The plugin links the republished Trust Wallet Core XCFrameworks from Maven Central. No SwiftPM package, host adapter, GitHub Packages repository, or Trust Wallet credentials are required for the default `WalletKit.trustWalletCore()` path.
+
+`WalletKit.trustWalletCore()` is intended for Android and iOS. JVM tests should use `WalletKit.withEngine(fakeWalletEngine)`.
 
 Create wallets the same way as Android:
 

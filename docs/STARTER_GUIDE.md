@@ -9,19 +9,21 @@ Add the modules your app needs:
 ```kotlin
 plugins {
     // Required only for KMP modules that declare iOS targets.
-    id("io.github.xemniz.wallet-toolkit.ios") version "0.1.0-alpha01"
+    id("io.github.xemniz.wallet-toolkit.ios") version "0.1.1"
 }
 
 kotlin {
     sourceSets {
         commonMain.dependencies {
-            implementation("io.github.xemniz:wallet-core:0.1.0-alpha01")
-            implementation("io.github.xemniz:wallet-evm:0.1.0-alpha01")
-            implementation("io.github.xemniz:wallet-rpc:0.1.0-alpha01")
+            implementation("io.github.xemniz:wallet-core:0.1.1")
+            implementation("io.github.xemniz:wallet-evm:0.1.1")
+            implementation("io.github.xemniz:wallet-rpc:0.1.1")
         }
     }
 }
 ```
+
+Pin an explicit released version. Do not use `0.1.0`; its Android metadata was published before the Trust Wallet Core republish fix and can leak the upstream `com.trustwallet` dependency.
 
 The plugin is required for KMP modules with iOS targets because Trust Wallet Core is distributed as XCFrameworks. It resolves those XCFrameworks from Maven Central and configures the iOS linker. Android-only consumers can omit it. No Trust Wallet GitHub Packages credentials are required.
 
@@ -47,11 +49,15 @@ Use `wallet-rpc` when you need node calls:
 - `RpcClient.sendRawTransaction(...)`
 - `RpcClient.getTransactionReceipt(...)`
 
+`RpcClient.withDefaults(...)` includes OkHttp for JVM/Android and Darwin for iOS. If you construct `RpcClient` with your own `HttpClient`, add the Ktor engine you want in the app.
+
 ## 2. Create The Wallet Kit
 
 ```kotlin
 val kit = WalletKit.trustWalletCore()
 ```
+
+This Trust Wallet Core backend is for Android and iOS. JVM tests should use `WalletKit.withEngine(fakeWalletEngine)`.
 
 For tests, provide a fake engine:
 

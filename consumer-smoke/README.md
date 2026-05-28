@@ -5,7 +5,7 @@ Standalone Kotlin Multiplatform project that consumes `kmp-wallet-toolkit` throu
 Run from the repository root after the release is available on Maven Central:
 
 ```bash
-./gradlew -p consumer-smoke -PwalletToolkitVersion=0.1.0-alpha01 \
+./gradlew -p consumer-smoke -PwalletToolkitVersion=0.1.1 \
   :compileAndroidMain \
   :compileKotlinIosSimulatorArm64 \
   :iosSimulatorArm64Test
@@ -22,7 +22,7 @@ To test a different locally published or pre-release version:
 The release smoke gate compiles Android and iOS explicitly:
 
 ```bash
-./gradlew -p consumer-smoke -PwalletToolkitVersion=0.1.0-alpha01 \
+./gradlew -p consumer-smoke -PwalletToolkitVersion=0.1.1 \
   :compileAndroidMain \
   :compileKotlinIosSimulatorArm64 \
   :iosSimulatorArm64Test

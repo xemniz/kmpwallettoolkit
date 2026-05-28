@@ -14,7 +14,7 @@ The toolkit modules are configured for standard Kotlin Multiplatform Maven publi
 Source checkouts default to a snapshot version for local development. Override it without editing source when testing or publishing a release:
 
 ```bash
-./gradlew -PwalletToolkitVersion=0.1.0-alpha01 :wallet-core:publishToMavenLocal
+./gradlew -PwalletToolkitVersion=0.1.1 :wallet-core:publishToMavenLocal
 ```
 
 The republished Trust Wallet Core artifacts use the upstream Trust Wallet Core version, currently `4.6.0`, not `walletToolkitVersion`.
@@ -24,7 +24,7 @@ Consumers should not publish anything locally and do not need Trust Wallet crede
 For maintainer testing before a release, publish all library modules locally:
 
 ```bash
-./gradlew -PwalletToolkitVersion=0.1.0-alpha01 \
+./gradlew -PwalletToolkitVersion=0.1.1 \
   :trustwallet-core-proto:publishToMavenLocal \
   :trustwallet-core-android:publishToMavenLocal \
   :trustwallet-core-ios:publishToMavenLocal \
@@ -40,7 +40,7 @@ Then add `mavenLocal()` to a throwaway consuming KMM app, or run this repo with 
 For the included standalone smoke consumer:
 
 ```bash
-./gradlew -p consumer-smoke -PwalletToolkitVersion=0.1.0-alpha01 \
+./gradlew -p consumer-smoke -PwalletToolkitVersion=0.1.1 \
   :compileAndroidMain \
   :compileKotlinIosSimulatorArm64 \
   :iosSimulatorArm64Test
@@ -103,7 +103,7 @@ These are maintainer/publishing credentials only. App developers consuming the t
 Upload a release deployment to Maven Central:
 
 ```bash
-./gradlew -PwalletToolkitVersion=0.1.0-alpha01 \
+./gradlew -PwalletToolkitVersion=0.1.1 \
   :trustwallet-core-proto:publishToMavenCentral \
   :trustwallet-core-android:publishToMavenCentral \
   :trustwallet-core-ios:publishToMavenCentral \

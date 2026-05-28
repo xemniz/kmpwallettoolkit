@@ -4,7 +4,7 @@ Use this checklist for every Maven Central release.
 
 ## Preflight
 
-- Confirm the release version, for example `0.1.0-alpha01`.
+- Confirm the release version, for example `0.1.1`.
 - Confirm the Trust Wallet Core wrapper version in `gradle/libs.versions.toml`.
 - Review `docs/TRUST_WALLET_CORE_DISTRIBUTION.md` and verify the upstream XCFramework SHA-256 values still match the release assets.
 - Confirm `settings.gradle.kts` does not require `mavenLocal()` or Trust Wallet GitHub Packages credentials for normal consumer builds.
@@ -23,7 +23,7 @@ Use this checklist for every Maven Central release.
 ```
 
 ```bash
-./gradlew -PwalletToolkitVersion=0.1.0-alpha01 \
+./gradlew -PwalletToolkitVersion=0.1.1 \
   :trustwallet-core-proto:publishToMavenLocal \
   :trustwallet-core-android:publishToMavenLocal \
   :trustwallet-core-ios:publishToMavenLocal \
@@ -35,7 +35,7 @@ Use this checklist for every Maven Central release.
 ```
 
 ```bash
-./gradlew -p consumer-smoke -PwalletToolkitVersion=0.1.0-alpha01 \
+./gradlew -p consumer-smoke -PwalletToolkitVersion=0.1.1 \
   :compileAndroidMain \
   :compileKotlinIosSimulatorArm64 \
   :iosSimulatorArm64Test
@@ -46,7 +46,7 @@ Use this checklist for every Maven Central release.
 Publish wrapper artifacts first, then toolkit artifacts:
 
 ```bash
-./gradlew -PwalletToolkitVersion=0.1.0-alpha01 \
+./gradlew -PwalletToolkitVersion=0.1.1 \
   :trustwallet-core-proto:publishToMavenCentral \
   :trustwallet-core-android:publishToMavenCentral \
   :trustwallet-core-ios:publishToMavenCentral \
