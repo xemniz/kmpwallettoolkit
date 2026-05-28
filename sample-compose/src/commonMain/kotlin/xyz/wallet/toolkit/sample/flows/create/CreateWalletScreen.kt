@@ -42,7 +42,7 @@ fun CreateWalletScreen(navigator: Navigator) {
         if (state.confirmed) {
             val created = state.wallet
             if (created != null) {
-                runCatching { SecureWalletStorageRuntime.get().save(created.mnemonic) }
+                runCatching { SecureWalletStorageRuntime.get().save(created.exportMnemonic()) }
                 session.wallet = created
                 navigator.replace(Route.Home)
             }
@@ -67,7 +67,7 @@ fun CreateWalletScreen(navigator: Navigator) {
                             // Intentionally drop throwable.message — may reference sensitive material (CLAUDE.md §4.1).
                             state.error = "Wallet creation failed"
                         } else {
-                            val prepared = state.prepareConfirm(created.mnemonic)
+                            val prepared = state.prepareConfirm(created.exportMnemonic())
                             if (!prepared) {
                                 state.wallet = null
                                 state.error = "Wallet creation failed"
@@ -87,7 +87,7 @@ fun CreateWalletScreen(navigator: Navigator) {
                         step = Step.Intro
                     } else {
                         RevealStep(
-                            mnemonic = wallet.mnemonic,
+                            mnemonic = wallet.exportMnemonic(),
                             revealed = state.revealed,
                             onReveal = { state.revealed = true },
                             onContinue = {
@@ -104,7 +104,7 @@ fun CreateWalletScreen(navigator: Navigator) {
                         if (wallet == null) {
                             step = Step.Intro
                         } else {
-                            val words = wallet.mnemonic.trim().split(Regex("\\s+"))
+                            val words = wallet.exportMnemonic().trim().split(Regex("\\s+"))
                             val correct = words.getOrNull(state.confirmIndex)
                             if (correct != null && picked == correct) {
                                 state.error = null

@@ -14,7 +14,7 @@ The project is intentionally split into small library modules plus a Compose Mul
 | `wallet-rpc` | Ktor JSON-RPC client for EVM node calls. |
 | `sample-compose` | Shared Compose Multiplatform starter wallet UI. |
 | `sample-app` | Android host for the sample UI. |
-| `iosApp` | iOS host and Trust Wallet Core adapter example. |
+| `iosApp` | iOS host for the sample UI. |
 
 ## Current Status
 
@@ -28,19 +28,53 @@ This is an EVM-first starter kit. The core modules compile and test on the confi
 - transaction status flow
 - swap quote/assembly work in progress
 
-The signing backend is intentionally behind a `WalletEngine` boundary. Android uses Trust Wallet Core through the Android actual bridge. iOS hosts install a Swift/Objective-C adapter at startup with `TrustWalletCoreRuntime.installIosAdapter(...)`.
+The signing backend is intentionally behind a `WalletEngine` boundary. Android uses Trust Wallet Core through the Android actual bridge. iOS uses Trust Wallet Core through Kotlin/Native cinterop against republished XCFramework artifacts.
+
+## Installation
+
+Released artifacts are available from Maven Central. Consumers do not need Trust Wallet GitHub Packages, SwiftPM, or any Trust Wallet credentials.
+
+```kotlin
+plugins {
+    // Required only for KMP modules that declare iOS targets.
+    id("io.github.xemniz.wallet-toolkit.ios") version "0.1.0-alpha01"
+}
+
+repositories {
+    google()
+    mavenCentral()
+}
+
+kotlin {
+    sourceSets {
+        commonMain.dependencies {
+            implementation("io.github.xemniz:wallet-core:0.1.0-alpha01")
+            implementation("io.github.xemniz:wallet-evm:0.1.0-alpha01")
+            implementation("io.github.xemniz:wallet-rpc:0.1.0-alpha01")
+        }
+    }
+}
+```
+
+Use only the modules you need:
+
+- `wallet-core` for wallet creation/import and address derivation.
+- `wallet-evm` for EVM transaction models and signing helpers.
+- `wallet-rpc` for EVM JSON-RPC calls.
+- `wallet-utils` is pulled in transitively by `wallet-core` and `wallet-evm`.
+
+The Gradle plugin is needed only for iOS targets. It resolves the republished Trust Wallet Core XCFrameworks from Maven Central and wires the native linker. Android consumers only need the library dependencies.
+
+For local development of this repository, the sample uses project dependencies by default. To validate the same sample as a downstream Maven client:
+
+```bash
+./gradlew -PwalletToolkitDependencyMode=maven \
+  :sample-compose:compileAndroidMain \
+  :sample-compose:linkDebugFrameworkIosSimulatorArm64 \
+  :sample-app:assembleDebug
+```
 
 ## Quick Start
-
-### Local GitHub Packages Credentials
-
-Trust Wallet Core is resolved from GitHub Packages. Keep those credentials outside the repo in your user Gradle properties file:
-
-```properties
-# ~/.gradle/gradle.properties
-gpr.user=xemniz
-gpr.key=<classic-token-with-read:packages>
-```
 
 Create or import a wallet with the high-level core facade:
 
@@ -62,6 +96,12 @@ Import an existing mnemonic:
 ```kotlin
 val wallet = kit.importWallet("abandon abandon abandon ...")
 val baseAddress = kit.address(wallet, SupportedChain.Base)
+```
+
+When the host app needs to persist a newly-created mnemonic, export it explicitly and write it only to platform secure storage:
+
+```kotlin
+secureStorage.save(wallet.exportMnemonic())
 ```
 
 Build and sign an EIP-1559 transaction:
@@ -106,17 +146,17 @@ Do not generate transaction nonces locally.
 
 ## iOS Host Setup
 
-Install the iOS adapter before creating a Trust Wallet Core backed wallet:
+For KMP apps built with Gradle, apply `io.github.xemniz.wallet-toolkit.ios` to the KMP module that declares iOS targets. The plugin links the republished Trust Wallet Core XCFrameworks from Maven Central. No SwiftPM package, host adapter, GitHub Packages repository, or Trust Wallet credentials are required for the default `WalletKit.trustWalletCore()` path.
+
+Create wallets the same way as Android:
 
 ```kotlin
-TrustWalletCoreRuntime.installIosAdapter(MyIosTrustWalletCoreAdapter())
-
 val kit = WalletKit.trustWalletCore()
 val wallet = kit.createWallet()
 val address = kit.address(wallet, SupportedChain.Ethereum)
 ```
 
-The adapter must implement mnemonic creation, address derivation, and signing with the native Trust Wallet Core integration supplied by the host app.
+Advanced hosts can still install a `TrustWalletCoreIosAdapter` if they want to bypass the bundled cinterop implementation and provide their own native backend. Normal consumers should not need that.
 
 ## Running Checks
 
@@ -140,13 +180,29 @@ Android:
 ./gradlew :sample-app:installDebug
 ```
 
+Android using the published Maven Central toolkit artifacts:
+
+```bash
+./gradlew -PwalletToolkitDependencyMode=maven :sample-app:installDebug
+```
+
 iOS:
 
 Open `iosApp/iosApp.xcodeproj` in Xcode, select a simulator, and run the app. The Xcode project builds the shared `SampleCompose` framework through Gradle.
 
+To verify that the sample links as a downstream Maven client before opening Xcode:
+
+```bash
+./gradlew -PwalletToolkitDependencyMode=maven \
+  :sample-compose:compileAndroidMain \
+  :sample-compose:linkDebugFrameworkIosSimulatorArm64 \
+  :sample-app:assembleDebug
+```
+
 ## Security Notes
 
 - Never log mnemonics, private keys, seed bytes, signing payloads containing key material, or raw private keys.
+- `Wallet.toString()` is redacted; use `Wallet.exportMnemonic()` only for explicit secure-storage or backup flows.
 - Transaction nonces come from `eth_getTransactionCount`.
 - EIP-1559 signing payload serialization is covered by drift/invariance tests because it is part of the signed input.
 - The toolkit delegates signing primitives to Trust Wallet Core; adding another crypto primitive library is a design decision, not a small implementation detail.

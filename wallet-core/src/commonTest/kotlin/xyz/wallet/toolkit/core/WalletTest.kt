@@ -11,8 +11,15 @@ class WalletTest {
     fun createsWalletAndDerivesAddressUsingEngine() {
         val wallet = Wallet.create(FakeEngine)
 
-        assertEquals("test mnemonic", wallet.mnemonic)
+        assertEquals("test mnemonic", wallet.exportMnemonic())
         assertEquals("0xethereum-address", wallet.address(SupportedChain.Ethereum))
+    }
+
+    @Test
+    fun walletToStringRedactsMnemonic() {
+        val wallet = Wallet.fromMnemonic("test mnemonic", FakeEngine)
+
+        assertEquals("Wallet(redacted)", wallet.toString())
     }
 
     @Test
@@ -25,6 +32,13 @@ class WalletTest {
 
     @Test
     fun trustWalletCoreConstructorUsesNativeBridgeSeam() {
+        if (isTrustWalletCoreAvailableInCurrentTestRuntime()) {
+            val wallet = Wallet.createWithTrustWalletCore()
+
+            assertTrue(wallet.exportMnemonic().split(" ").size == 12)
+            return
+        }
+
         val error = assertFailsWith<NotImplementedError> {
             Wallet.createWithTrustWalletCore()
         }
@@ -34,6 +48,14 @@ class WalletTest {
     @Test
     fun trustWalletCoreSignTransactionFallsBackUntilRuntimeIsAvailable() {
         val wallet = Wallet.fromMnemonicWithTrustWalletCore("test mnemonic")
+        if (isTrustWalletCoreAvailableInCurrentTestRuntime()) {
+            val error = assertFailsWith<IllegalArgumentException> {
+                wallet.signTransaction(SupportedChain.Ethereum, object : Transaction {})
+            }
+            assertTrue(error.message?.contains("Only EvmTransactionData") == true)
+            return
+        }
+
         val error = assertFailsWith<NotImplementedError> {
             wallet.signTransaction(SupportedChain.Ethereum, object : Transaction {})
         }
@@ -56,4 +78,3 @@ private object FakeEngine : WalletEngine {
         return byteArrayOf(0x01, 0x02)
     }
 }
-

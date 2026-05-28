@@ -4,13 +4,26 @@ This guide is the intended first path for an app team using `kmp-wallet-toolkit`
 
 ## 1. Pick The Layer
 
-Before building, configure GitHub Packages credentials locally:
+Add the modules your app needs:
 
-```properties
-# ~/.gradle/gradle.properties
-gpr.user=xemniz
-gpr.key=<classic-token-with-read:packages>
+```kotlin
+plugins {
+    // Required only for KMP modules that declare iOS targets.
+    id("io.github.xemniz.wallet-toolkit.ios") version "0.1.0-alpha01"
+}
+
+kotlin {
+    sourceSets {
+        commonMain.dependencies {
+            implementation("io.github.xemniz:wallet-core:0.1.0-alpha01")
+            implementation("io.github.xemniz:wallet-evm:0.1.0-alpha01")
+            implementation("io.github.xemniz:wallet-rpc:0.1.0-alpha01")
+        }
+    }
+}
 ```
+
+The plugin is required for KMP modules with iOS targets because Trust Wallet Core is distributed as XCFrameworks. It resolves those XCFrameworks from Maven Central and configures the iOS linker. Android-only consumers can omit it. No Trust Wallet GitHub Packages credentials are required.
 
 Use `wallet-core` when you need wallet lifecycle and addresses:
 
@@ -53,7 +66,11 @@ val newWallet = kit.createWallet()
 val importedWallet = kit.importWallet(existingMnemonic)
 ```
 
-Host apps are responsible for secure storage. The sample uses platform storage wrappers in the Android and iOS hosts.
+Host apps are responsible for secure storage. The sample uses platform storage wrappers in the Android and iOS hosts. When you need to persist a newly created phrase, export it explicitly:
+
+```kotlin
+secureStorage.save(newWallet.exportMnemonic())
+```
 
 ## 4. Derive Addresses
 
@@ -102,7 +119,7 @@ A `null` receipt means the transaction is still pending.
 
 ## Production Checklist
 
-- Install a real Trust Wallet Core backend for every target you ship.
+- Use `WalletKit.trustWalletCore()` on Android and iOS; the published artifacts provide the Trust Wallet Core backend.
 - Store mnemonics only in platform secure storage.
 - Keep RPC/API credentials out of source control.
 - Use golden vectors for every signing path you add.

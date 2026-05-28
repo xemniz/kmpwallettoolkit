@@ -1,13 +1,13 @@
 package xyz.wallet.toolkit.core
 
 actual class TrustWalletCoreWalletEngine actual constructor() : WalletEngine {
-    override fun createMnemonic(): String = TrustWalletCoreNativeBridge.createMnemonic()
+    actual override fun createMnemonic(): String = TrustWalletCoreNativeBridge.createMnemonic()
 
-    override fun deriveAddress(mnemonic: String, chain: SupportedChain): String {
+    actual override fun deriveAddress(mnemonic: String, chain: SupportedChain): String {
         return TrustWalletCoreNativeBridge.deriveAddress(mnemonic = mnemonic, chain = chain)
     }
 
-    override fun signTransaction(
+    actual override fun signTransaction(
         mnemonic: String,
         chain: SupportedChain,
         transaction: Transaction,
@@ -19,7 +19,7 @@ actual class TrustWalletCoreWalletEngine actual constructor() : WalletEngine {
         )
     }
 
-    override fun signEip1559(
+    actual override fun signEip1559(
         mnemonic: String,
         chain: SupportedChain,
         signingPayloadJson: ByteArray,

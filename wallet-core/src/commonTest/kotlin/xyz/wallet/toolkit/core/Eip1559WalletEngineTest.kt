@@ -45,6 +45,17 @@ class Eip1559WalletEngineTest {
     @Test
     fun trustWalletCoreSignEip1559FallsBackUntilRuntimeIsAvailable() {
         val wallet = Wallet.fromMnemonicWithTrustWalletCore("test mnemonic")
+        if (isTrustWalletCoreAvailableInCurrentTestRuntime()) {
+            val error = assertFailsWith<Throwable> {
+                wallet.signEip1559Transaction(
+                    chain = SupportedChain.Ethereum,
+                    signingPayloadJson = byteArrayOf(0),
+                )
+            }
+            assertTrue(error.message?.isNotBlank() != false)
+            return
+        }
+
         val error = assertFailsWith<NotImplementedError> {
             wallet.signEip1559Transaction(
                 chain = SupportedChain.Ethereum,
