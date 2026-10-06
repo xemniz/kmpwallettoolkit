@@ -5,9 +5,7 @@ package xyz.wallet.toolkit.sample.state
  * (`sample-app` on Android, `iosApp` on iOS) installs an instance at
  * process start; commonMain consumers read via [get].
  *
- * If no host installs one, [get] returns [NoOpSecureWalletStorage] — a
- * transient in-memory stand-in so tests and dev runs don't crash.
- * Persistence is lost on process death in that case.
+ * Missing platform storage cannot report successful persistence.
  */
 object SecureWalletStorageRuntime {
     private var installed: SecureWalletStorage? = null
@@ -16,21 +14,22 @@ object SecureWalletStorageRuntime {
         installed = storage
     }
 
-    fun get(): SecureWalletStorage = installed ?: NoOpSecureWalletStorage
+    fun get(): SecureWalletStorage = installed ?: MissingSecureWalletStorage
+
+    fun getOperationStorage(): SecureOperationStorage =
+        installed as? SecureOperationStorage ?: MissingSecureOperationStorage
 }
 
-internal object NoOpSecureWalletStorage : SecureWalletStorage {
-    private var slot: String? = null
+internal object MissingSecureWalletStorage : SecureWalletStorage {
+    override fun save(mnemonic: String): Boolean = false
+    override fun load(): String? = null
+    override fun clear(): Boolean = false
+    override fun toString(): String = "MissingSecureWalletStorage"
+}
 
-    override fun save(mnemonic: String) {
-        slot = mnemonic
-    }
-
-    override fun load(): String? = slot
-
-    override fun clear() {
-        slot = null
-    }
-
-    override fun toString(): String = "NoOpSecureWalletStorage"
+internal object MissingSecureOperationStorage : SecureOperationStorage {
+    override val journalReadFailed: Boolean = true
+    override fun loadJournal(): String? = null
+    override fun saveJournal(serialized: String): Boolean = false
+    override fun toString(): String = "MissingSecureOperationStorage"
 }

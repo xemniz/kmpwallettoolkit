@@ -2,54 +2,71 @@ import Foundation
 import Security
 import SampleCompose
 
-/// Keychain-backed mnemonic storage.
-///
-/// Uses a generic password item with `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly`
-/// so the secret is available to the app in the background but cannot migrate
-/// off-device via iCloud Keychain. Items are scoped by a constant service
-/// + account pair; overwrites use `SecItemUpdate` with `SecItemAdd` fallback.
-///
-/// CLAUDE.md §4.1: never log the stored value; `description` is redacted.
-final class KeychainSecureWalletStorage: NSObject, SecureWalletStorage {
-
+/// Device-only Keychain storage. Signing out removes the mnemonic but preserves unfinished operations.
+final class KeychainSecureWalletStorage: NSObject, SecureWalletStorage, SecureOperationStorage {
     private static let service = "xyz.wallet.toolkit.sample"
-    private static let account = "mnemonic"
+    private static let mnemonicAccount = "mnemonic"
+    private static let journalAccount = "unfinished-operations-v1"
 
-    private var baseQuery: [CFString: Any] {
+    private(set) var journalReadFailed = false
+
+    private func query(account: String) -> [CFString: Any] {
         return [
             kSecClass: kSecClassGenericPassword,
             kSecAttrService: Self.service,
-            kSecAttrAccount: Self.account,
+            kSecAttrAccount: account,
         ]
     }
 
-    func save(mnemonic: String) {
-        guard let data = mnemonic.data(using: .utf8) else { return }
-
+    private func saveValue(_ value: String, account: String) -> Bool {
+        guard let data = value.data(using: .utf8) else { return false }
+        let baseQuery = query(account: account)
         let updateAttrs: [CFString: Any] = [kSecValueData: data]
         let updateStatus = SecItemUpdate(baseQuery as CFDictionary, updateAttrs as CFDictionary)
 
-        if updateStatus == errSecItemNotFound {
-            var addQuery = baseQuery
-            addQuery[kSecValueData] = data
-            addQuery[kSecAttrAccessible] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
-            SecItemAdd(addQuery as CFDictionary, nil)
-        }
+        if updateStatus == errSecSuccess { return true }
+        guard updateStatus == errSecItemNotFound else { return false }
+
+        var addQuery = baseQuery
+        addQuery[kSecValueData] = data
+        addQuery[kSecAttrAccessible] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+        return SecItemAdd(addQuery as CFDictionary, nil) == errSecSuccess
+    }
+
+    private func loadValue(account: String) -> (value: String?, failed: Bool) {
+        var readQuery = query(account: account)
+        readQuery[kSecReturnData] = true
+        readQuery[kSecMatchLimit] = kSecMatchLimitOne
+
+        var result: AnyObject?
+        let status = SecItemCopyMatching(readQuery as CFDictionary, &result)
+        if status == errSecItemNotFound { return (nil, false) }
+        guard status == errSecSuccess, let data = result as? Data,
+              let value = String(data: data, encoding: .utf8) else { return (nil, true) }
+        return (value, false)
+    }
+
+    func save(mnemonic: String) -> Bool {
+        return saveValue(mnemonic, account: Self.mnemonicAccount)
     }
 
     func load() -> String? {
-        var query = baseQuery
-        query[kSecReturnData] = true
-        query[kSecMatchLimit] = kSecMatchLimitOne
-
-        var result: AnyObject?
-        let status = SecItemCopyMatching(query as CFDictionary, &result)
-        guard status == errSecSuccess, let data = result as? Data else { return nil }
-        return String(data: data, encoding: .utf8)
+        return loadValue(account: Self.mnemonicAccount).value
     }
 
-    func clear() {
-        SecItemDelete(baseQuery as CFDictionary)
+    func clear() -> Bool {
+        let status = SecItemDelete(query(account: Self.mnemonicAccount) as CFDictionary)
+        return status == errSecSuccess || status == errSecItemNotFound
+    }
+
+    func loadJournal() -> String? {
+        let result = loadValue(account: Self.journalAccount)
+        journalReadFailed = result.failed
+        return result.value
+    }
+
+    func saveJournal(serialized: String) -> Bool {
+        return saveValue(serialized, account: Self.journalAccount)
     }
 
     override var description: String { "KeychainSecureWalletStorage" }

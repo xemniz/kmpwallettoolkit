@@ -5,34 +5,57 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import xyz.wallet.toolkit.core.Wallet
+import xyz.wallet.toolkit.sample.state.WalletSession
 
-/**
- * Plain Compose state holder for the mnemonic-import screen.
- *
- * CLAUDE.md §4.1: [input] contains user-supplied secret material. It MUST NOT
- * be interpolated into [toString], logs, or exception messages. The overridden
- * [toString] prints a fixed "REDACTED" marker regardless of [input] contents.
- */
+/** Recovery words and a restored wallet stay in memory until persistence succeeds. */
 class ImportWalletState {
     var input: String by mutableStateOf("")
         private set
 
-    var submissionError: Boolean by mutableStateOf(false)
+    var errorMessage: String? by mutableStateOf<String?>(null)
         private set
 
+    val submissionError: Boolean get() = errorMessage != null
     var isSubmitting: Boolean by mutableStateOf(false)
+        private set
+    private var restoredWallet: Wallet? = null
 
     val validation: ValidationResult
         get() = validate(input)
 
     fun onInputChange(newValue: String) {
         input = newValue
-        // Any edit clears a prior failure so the user sees a fresh slate.
-        submissionError = false
+        errorMessage = null
+        restoredWallet = null
     }
 
-    fun markSubmissionError() {
-        submissionError = true
+    fun submit(
+        session: WalletSession,
+        restoreWallet: (String) -> Wallet = Wallet::fromMnemonicWithTrustWalletCore,
+    ): Boolean {
+        val current = validation
+        if (current !is ValidationResult.Valid || isSubmitting) return false
+        isSubmitting = true
+        val phrase = current.words.joinToString(" ")
+        try {
+            val wallet = restoredWallet ?: restoreWallet(phrase).also {
+                // Derive before saving so an invalid phrase is rejected on this screen.
+                it.address(session.selectedChain)
+                restoredWallet = it
+            }
+            if (!session.login(phrase, wallet)) {
+                errorMessage = "Could not save wallet. Retry restoring it."
+                return false
+            }
+            errorMessage = null
+            return true
+        } catch (_: Exception) {
+            errorMessage = "Could not restore wallet — check the phrase and try again."
+            return false
+        } finally {
+            isSubmitting = false
+        }
     }
 
     override fun toString(): String =

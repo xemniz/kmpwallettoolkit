@@ -6,24 +6,77 @@ import androidx.compose.runtime.setValue
 import xyz.wallet.toolkit.core.SupportedChain
 import xyz.wallet.toolkit.core.Wallet
 
-/**
- * In-memory session for the sample-compose showcase.
- *
- * Intentionally NOT a data class: auto-generated `toString()` would invoke
- * `Wallet.toString()` and risk leaking mnemonic bytes (CLAUDE.md §4.1).
- * The hand-rolled `toString()` below prints the literal "REDACTED" when a
- * wallet is present and never references `wallet.exportMnemonic()`.
- *
- * Portfolio state lives in Koin (see `PortfolioRepository`), not here — a
- * repository owned by DI is the right scope for data that must survive
- * screen navigation. Session-local state is limited to: what wallet is
- * logged in, and the last broadcast tx hash for the Tx-status screen.
- */
-class WalletSession {
+class WalletSession(
+    private val storage: SecureWalletStorage = SecureWalletStorageRuntime.get(),
+    private val restoreWallet: (String) -> Wallet = Wallet::fromMnemonicWithTrustWalletCore,
+) {
     var wallet: Wallet? by mutableStateOf<Wallet?>(null)
+        private set
     var selectedChain: SupportedChain by mutableStateOf(SupportedChain.Ethereum)
     var lastTxHash: String? by mutableStateOf<String?>(null)
+    var epoch: Long by mutableStateOf(0L)
+        private set
+    var restorationFailed: Boolean by mutableStateOf(false)
+        private set
+    private var hydrated = false
+    private val invalidationListeners = mutableListOf<() -> Unit>()
+
+    fun hydrateOnce(): Boolean {
+        if (hydrated) return wallet != null
+        hydrated = true
+        try {
+            val mnemonic = storage.load() ?: return false
+            val restored = restoreWallet(mnemonic)
+            restored.address(selectedChain)
+            wallet = restored
+            epoch++
+            return true
+        } catch (_: Exception) {
+            restorationFailed = true
+            return false
+        }
+    }
+
+    fun login(mnemonic: String, wallet: Wallet): Boolean {
+        val saved = try {
+            storage.save(mnemonic)
+        } catch (_: Exception) {
+            false
+        }
+        if (!saved) return false
+        hydrated = true
+        restorationFailed = false
+        this.wallet = wallet
+        lastTxHash = null
+        invalidate()
+        return true
+    }
+
+    fun logout(): Boolean {
+        val cleared = try {
+            storage.clear()
+        } catch (_: Exception) {
+            false
+        }
+        if (!cleared) return false
+        wallet = null
+        lastTxHash = null
+        invalidate()
+        return true
+    }
+
+    fun canSign(expectedEpoch: Long): Boolean = wallet != null && epoch == expectedEpoch
+
+    fun addInvalidationListener(listener: () -> Unit): () -> Unit {
+        invalidationListeners.add(listener)
+        return { invalidationListeners.remove(listener) }
+    }
+
+    private fun invalidate() {
+        epoch++
+        invalidationListeners.toList().forEach { listener -> runCatching(listener) }
+    }
 
     override fun toString(): String =
-        "WalletSession(wallet=${if (wallet == null) "null" else "REDACTED"}, chain=${selectedChain.id}, lastTxHash=$lastTxHash)"
+        "WalletSession(wallet=${if (wallet == null) "null" else "REDACTED"}, chain=${selectedChain.id})"
 }

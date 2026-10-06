@@ -19,10 +19,11 @@ class RpcClient(
     private val baseUrl: String,
     private val httpClient: HttpClient,
     private val json: Json = Json,
+    private val ownsHttpClient: Boolean = false,
 ) {
-    // Lenient decoder used for receipts. Receipts are the most forward-compat-
-    // sensitive surface (EIP-1559 effectiveGasPrice, EIP-2718 type, EIP-4844
-    // blobGasUsed, etc.), so unknown fields must not break decoding.
+    private var closed: Boolean = false
+    val isClosed: Boolean get() = closed
+
     private val lenientJson: Json =
         if (json.configuration.ignoreUnknownKeys) json
         else Json(from = json) { ignoreUnknownKeys = true }
@@ -34,8 +35,20 @@ class RpcClient(
                     json(json)
                 }
             }
-            return RpcClient(baseUrl = baseUrl, httpClient = httpClient, json = json)
+            return RpcClient(
+                baseUrl = baseUrl,
+                httpClient = httpClient,
+                json = json,
+                ownsHttpClient = true,
+            )
         }
+    }
+
+    /** Closes this wrapper and, when owned, its HTTP client. Borrowed clients remain usable. */
+    fun close() {
+        if (closed) return
+        closed = true
+        if (ownsHttpClient) httpClient.close()
     }
 
     suspend fun getBalance(address: String, blockTag: String = "latest"): String {
@@ -76,6 +89,7 @@ class RpcClient(
     }
 
     private suspend fun callRaw(method: String, vararg params: JsonElement): JsonElement? {
+        check(!isClosed) { "RPC client is closed" }
         val request = JsonRpcRequest(method = method, params = params.toList())
         val response: JsonRpcResponse<JsonElement> = httpClient.post(baseUrl) {
             contentType(ContentType.Application.Json)
@@ -94,5 +108,3 @@ class RpcException(
     val code: Int,
     override val message: String,
 ) : IllegalStateException("RPC error($code): $message")
-
-
