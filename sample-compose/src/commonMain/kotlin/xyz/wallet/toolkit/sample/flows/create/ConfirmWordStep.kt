@@ -22,7 +22,7 @@ import xyz.wallet.toolkit.sample.ui.MonoText
  * Confirm-word step: prompts the user to pick which word was at the target
  * position. The four options are provided pre-shuffled by the caller. A
  * subdued `errorHint` is shown underneath when present — the challenge is
- * intentionally NOT regenerated on an incorrect pick (see spec §Design.3).
+ * preserved after an incorrect pick so retrying does not change the challenge.
  */
 @Composable
 fun ConfirmWordStep(

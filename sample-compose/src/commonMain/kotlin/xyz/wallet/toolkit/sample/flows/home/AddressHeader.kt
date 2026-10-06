@@ -23,7 +23,7 @@ import xyz.wallet.toolkit.sample.ui.MonoText
  * Renders the active wallet's EVM address as a tap-to-copy affordance.
  *
  * Address casing is normalized to lowercase at both display and copy sites
- * (CLAUDE.md §4.7). The shortened form is display-only; the clipboard
+ * The shortened form is display-only; the clipboard
  * always receives the full lowercase address.
  */
 @Composable

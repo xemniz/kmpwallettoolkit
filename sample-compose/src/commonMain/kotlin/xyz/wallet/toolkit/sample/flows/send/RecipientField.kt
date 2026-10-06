@@ -15,16 +15,7 @@ import androidx.compose.ui.unit.dp
 import xyz.wallet.toolkit.sample.platform.rememberClipboardTextHandler
 import xyz.wallet.toolkit.sample.theme.WalletColors
 
-/**
- * Recipient-address utilities and field.
- *
- * Validation rule (spec §Recipient validation + CLAUDE.md §4.7):
- *  - Regex `^0x[0-9a-fA-F]{40}$`. Accepts mixed case (EIP-55 checksummed
- *    addresses pass without verification — we intentionally do NOT verify
- *    the checksum in this spec; we only normalize).
- *  - `normalizeRecipient` lowercases for storage and all downstream
- *    comparisons. UI display may keep original casing.
- */
+/** Accept hex addresses regardless of checksum casing, then normalize their identity. */
 private val ADDRESS_REGEX = Regex("^0x[0-9a-fA-F]{40}$")
 
 enum class ValidationResult { Valid, Invalid }

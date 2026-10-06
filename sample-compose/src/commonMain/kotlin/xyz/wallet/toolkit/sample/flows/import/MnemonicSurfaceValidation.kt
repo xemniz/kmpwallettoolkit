@@ -1,20 +1,12 @@
 package xyz.wallet.toolkit.sample.flows.import
 
-/**
- * Pure, stateless surface-level validation for pasted mnemonics.
- *
- * Intentionally NOT a dictionary or checksum check. BIP-39 correctness is the
- * toolkit's responsibility via [xyz.wallet.toolkit.core.Wallet.fromMnemonicWithTrustWalletCore].
- * This file exists only to keep the "Restore" CTA disabled until the user's
- * input has a plausible BIP-39 word count.
- *
- * CLAUDE.md §4.1: callers of [validate] MUST NOT log the returned
- * [ValidationResult.Valid.words] or the joined phrase derived from them.
- */
+/** Word-count validation for the form; native wallet import validates BIP-39 correctness. */
 sealed interface ValidationResult {
     data object Empty : ValidationResult
     data class WrongWordCount(val count: Int) : ValidationResult
-    data class Valid(val words: List<String>) : ValidationResult
+    data class Valid(val words: List<String>) : ValidationResult {
+        override fun toString(): String = "Valid(redacted)"
+    }
 }
 
 private val WHITESPACE = Regex("\\s+")

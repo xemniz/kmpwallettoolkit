@@ -160,7 +160,7 @@ val wallet = kit.createWallet()
 val address = kit.address(wallet, SupportedChain.Ethereum)
 ```
 
-Advanced hosts can still install a `TrustWalletCoreIosAdapter` if they want to bypass the bundled cinterop implementation and provide their own native backend. Normal consumers should not need that.
+Custom backends implement `WalletEngine` and are supplied through `WalletKit.withEngine(...)`.
 
 ## Running Checks
 

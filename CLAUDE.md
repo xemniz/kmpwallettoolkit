@@ -20,10 +20,10 @@ wallet-evm  wallet-rpc
 |--------------|---------------------------------------------------|----------------------------------|---------|
 | wallet-utils | commonMain, jvmMain, androidMain, iosMain         | `xyz.wallet.toolkit.utils`       | Hex & encoding helpers |
 | wallet-core  | commonMain, commonTest, jvmMain, androidMain, iosMain | `xyz.wallet.toolkit.core`    | Wallet facade, chain registry, signer boundary, Trust Wallet Core bridge |
-| wallet-evm   | commonMain, commonTest (jvm + android only)       | `xyz.wallet.toolkit.evm`         | EVM transaction data + signing payload serialization |
-| wallet-rpc   | commonMain, commonTest (jvm + android only)       | `xyz.wallet.toolkit.rpc`         | JSON-RPC client (Ktor) |
+| wallet-evm   | commonMain, commonTest (JVM, Android, iOS)       | `xyz.wallet.toolkit.evm`         | EVM transaction data + signing payload serialization |
+| wallet-rpc   | commonMain, commonTest (JVM, Android, iOS)       | `xyz.wallet.toolkit.rpc`         | JSON-RPC client (Ktor) |
 
-**iOS targets exist only in wallet-core and wallet-utils.** Do not add `iosMain` to wallet-evm or wallet-rpc without first adding iOS targets to their `build.gradle.kts` — `kotlin { iosX64(); iosArm64(); iosSimulatorArm64() }`.
+All four toolkit modules target JVM, Android, and iOS. Platform-specific native calls remain confined to wallet-core.
 
 ---
 
@@ -48,15 +48,15 @@ wallet-evm  wallet-rpc
 - `android.security.keystore.*` is allowed here.
 
 ### iosMain specifics
-- No JNI. Use the `TrustWalletCoreIosAdapter` hook pattern — the host app installs a Swift/Objective-C adapter at runtime via `TrustWalletCoreRuntime.installIosAdapter(...)`.
-- For randomness on iOS: delegate to the platform adapter; do **not** use `kotlin.random.Random`.
+- No JNI. The bundled Trust Wallet Core bridge calls the WalletCore C API through cinterop. Custom backends implement `WalletEngine` and are injected with `WalletKit.withEngine(...)`.
+- For randomness on iOS: use a cryptographically secure platform source or Trust Wallet Core; do **not** use `kotlin.random.Random`.
 
 ### jvmMain specifics
 - Currently stubs throwing `NotImplementedError` for Trust Wallet Core calls — used only for unit-test compilation. Don't add production logic here unless the task explicitly calls for it.
 
 ### expect/actual discipline
 - `expect` declarations live in `commonMain`. Every target that compiles the common source set **must** have a matching `actual`.
-- If you add an `expect fun`/`expect class`, add actuals in **all four** target source sets (`jvmMain`, `androidMain`, `iosMain` — and remember wallet-evm/wallet-rpc have no iOS targets).
+- If you add an `expect fun`/`expect class`, provide actuals for every configured target. The toolkit currently uses `jvmMain`, `androidMain`, and `iosMain` (with native C API code in `iosWalletCoreMain`).
 - Never use `expect`/`actual` to paper over a design that should be an interface + DI. If the platform difference is "a different implementation of the same contract", use an interface and inject it.
 - Do not rename or remove `expect` symbols without updating every actual in the same change.
 
@@ -75,7 +75,7 @@ wallet-evm  wallet-rpc
 | wallet-evm   | `./gradlew :wallet-evm:allTests` |
 | wallet-rpc   | `./gradlew :wallet-rpc:allTests` |
 
-`allTests` aggregates `jvmTest` plus `iosX64Test` / `iosSimulatorArm64Test` for modules with iOS targets. For wallet-evm and wallet-rpc it is effectively `jvmTest` + `testDebugUnitTest`.
+`allTests` aggregates `jvmTest` plus `iosX64Test` / `iosSimulatorArm64Test` for modules with iOS targets. Android tests are explicitly enabled through the AGP KMP test builders. Native wallet-core signing vectors run in `androidDeviceTest`; execute `:wallet-core:connectedAndroidDeviceTest` on an emulator/device as well as `allTests`. iOS x64 runtime tests may be skipped on an ARM host, so verify simulator ARM64 tests actually execute.
 
 ### Compile-only check (fast smoke)
 
