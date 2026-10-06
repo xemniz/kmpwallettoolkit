@@ -37,7 +37,7 @@ fun OperationScreen(route: Route.Operation, navigator: Navigator) {
 
     PhoneFrame {
         BackBar(onBack = { navigator.replace(Route.Home) }, title = "Transaction progress")
-        if (!visible || operation == null) {
+        if (!visible) {
             Text("This operation is unavailable for the current wallet.", color = WalletColors.textSecondary)
             return@PhoneFrame
         }

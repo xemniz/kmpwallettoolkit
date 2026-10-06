@@ -1,6 +1,7 @@
 package xyz.wallet.toolkit.sample.flows.swap
 
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
@@ -13,6 +14,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import xyz.wallet.toolkit.core.SupportedChain
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class SwapViewModelTest {
     @Test
     fun amountEditImmediatelyRevokesAnAcceptedQuote() = runTest {
