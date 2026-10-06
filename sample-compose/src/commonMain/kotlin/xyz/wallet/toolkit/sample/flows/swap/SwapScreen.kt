@@ -11,8 +11,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -29,6 +31,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -72,6 +75,7 @@ fun SwapScreen(route: Route.Swap, navigator: Navigator) {
     val vm = remember(chain, wallet) { vmFactory.create(chain, wallet.address(chain), scope) }
     DisposableEffect(vm) { onDispose { vm.dispose() } }
     val execution: TransactionExecutionRepository = koinInject()
+    val focusManager = LocalFocusManager.current
     var selectedQuote by remember(vm) { mutableStateOf<AcceptedSwapQuote?>(null) }
     var review by remember(vm) { mutableStateOf<ExecutionReview?>(null) }
     var preparing by remember(vm) { mutableStateOf(false) }
@@ -99,43 +103,49 @@ fun SwapScreen(route: Route.Swap, navigator: Navigator) {
     PhoneFrame {
         BackBar(onBack = { navigator.pop() }, title = "Swap — ${chain.displayName}")
 
-        Spacer(Modifier.height(4.dp))
-
-        SellCard(
-            token = ui.sell,
-            amount = ui.amountInput,
-            onAmountChange = vm::onAmountChange,
-            onPickToken = { picker = PickerSide.Sell },
-        )
-
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 6.dp),
-            contentAlignment = Alignment.Center,
+                .weight(1f)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            Spacer(Modifier.height(4.dp))
+
+            SellCard(
+                token = ui.sell,
+                amount = ui.amountInput,
+                onAmountChange = vm::onAmountChange,
+                onPickToken = { picker = PickerSide.Sell },
+            )
+
             Box(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(14.dp))
-                    .border(1.dp, WalletColors.outline, RoundedCornerShape(14.dp))
-                    .clickable { vm.onFlip() }
-                    .padding(horizontal = 14.dp, vertical = 6.dp),
+                    .fillMaxWidth()
+                    .padding(vertical = 6.dp),
+                contentAlignment = Alignment.Center,
             ) {
-                Text("⇅", color = WalletColors.textPrimary, fontSize = 14.sp)
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(14.dp))
+                        .border(1.dp, WalletColors.outline, RoundedCornerShape(14.dp))
+                        .clickable { vm.onFlip() }
+                        .padding(horizontal = 14.dp, vertical = 6.dp),
+                ) {
+                    Text("⇅", color = WalletColors.textPrimary, fontSize = 14.sp)
+                }
             }
+
+            BuyCard(
+                token = ui.buy,
+                quote = ui.quote,
+                onPickToken = { picker = PickerSide.Buy },
+            )
+
+            Spacer(Modifier.height(12.dp))
+
+            QuoteSummary(ui = ui)
         }
-
-        BuyCard(
-            token = ui.buy,
-            quote = ui.quote,
-            onPickToken = { picker = PickerSide.Buy },
-        )
-
-        Spacer(Modifier.height(12.dp))
-
-        QuoteSummary(ui = ui)
-
-        Spacer(Modifier.height(0.dp).weight(1f))
 
         Column(
             modifier = Modifier.fillMaxWidth(),
@@ -155,6 +165,7 @@ fun SwapScreen(route: Route.Swap, navigator: Navigator) {
                             if (vm.isCurrent(selection)) {
                                 selectedQuote = selection
                                 review = prepared
+                                focusManager.clearFocus()
                             }
                         } catch (cancelled: CancellationException) {
                             throw cancelled
