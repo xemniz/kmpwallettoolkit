@@ -20,6 +20,28 @@ import kotlin.test.assertFalse
 @OptIn(ExperimentalCoroutinesApi::class)
 class TransactionExecutionRepositoryTest {
     @Test
+    fun recreatingTheRootUiPreservesTheActiveSessionExecution() = runTest {
+        val refreshed = CompletableDeferred<SwapQuote>()
+        val rpc = FakeExecutionRpc()
+        val wallet = FakeExecutionWallet()
+        val repository = TransactionExecutionRepository(MemoryJournal(), { rpc }, ::hashSigned, { _, _, _ -> refreshed.await() }, backgroundScope)
+        repository.attachSession(wallet, epoch = 1)
+        repository.start(repository.prepareSwap(SupportedChain.Ethereum, OWNER, tokenQuote()))
+        runCurrent()
+        rpc.allowance = "100"
+        rpc.receipt = ExecutionReceipt(HASH, succeeded = true)
+        advanceTimeBy(3_000)
+        runCurrent()
+
+        repository.attachSession(wallet, epoch = 1)
+        refreshed.complete(tokenQuote())
+        runCurrent()
+
+        assertEquals(2, rpc.broadcasts.size)
+        assertEquals(listOf(7L, 7L), wallet.signedNonces)
+    }
+
+    @Test
     fun invalidPersistedAssetMetadataBlocksRecoveryAndSubmissions() = runTest {
         val journal = MemoryJournal()
         val original = repository(journal, FakeExecutionRpc(), FakeExecutionWallet())

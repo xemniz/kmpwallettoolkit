@@ -149,7 +149,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "cd \"$SRCROOT/..\"\n./gradlew :sample-compose:embedAndSignAppleFrameworkForXcode\n";
+			shellScript = "cd \"$SRCROOT/..\"\n./gradlew :sample-compose:embedAndSignAppleFrameworkForXcode --configure-on-demand\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -385,4 +385,3 @@
 	};
 	rootObject = 7555FF72242A565900829871 /* Project object */;
 }
-

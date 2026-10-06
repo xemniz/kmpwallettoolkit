@@ -176,12 +176,3 @@ private fun HoldToSignButton(
         if (!enabled) progress.snapTo(0f)
     }
 }
-
-internal fun truncateAddress(addr: String): String =
-    if (addr.length <= 12) addr else addr.take(6) + "…" + addr.takeLast(4)
-
-internal fun estMaxFeeEth(maxFeeGwei: String): String = try {
-    EthFormat.formatWeiAsEth(EthFormat.multiplyWeiByInt(EthFormat.gweiToWei(maxFeeGwei), 21_000), 18)
-} catch (_: IllegalArgumentException) {
-    "—"
-}

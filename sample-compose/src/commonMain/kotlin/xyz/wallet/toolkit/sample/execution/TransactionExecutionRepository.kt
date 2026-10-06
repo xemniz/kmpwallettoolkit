@@ -54,6 +54,8 @@ class TransactionExecutionRepository(
     }
 
     fun attachSession(wallet: ExecutionWallet, epoch: Long) {
+        // Root UI recreation reattaches the same app-owned session; its epoch owns authorization.
+        if (sessionWallet != null && sessionEpoch == epoch) return
         revokeSession()
         sessionWallet = wallet
         sessionEpoch = epoch
