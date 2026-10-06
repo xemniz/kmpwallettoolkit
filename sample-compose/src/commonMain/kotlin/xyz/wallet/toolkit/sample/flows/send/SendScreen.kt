@@ -2,9 +2,9 @@ package xyz.wallet.toolkit.sample.flows.send
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -12,6 +12,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.dp
 import xyz.wallet.toolkit.core.ChainRegistry
 import xyz.wallet.toolkit.sample.nav.Navigator
@@ -33,6 +34,7 @@ fun SendScreen(route: Route.Send, navigator: Navigator) {
     val chain = ChainRegistry.byId(route.chainId)
     val state = remember(route.chainId) { SendState(chainId = route.chainId) }
     val execution: TransactionExecutionRepository = koinInject()
+    val focusManager = LocalFocusManager.current
     var review by remember(wallet, route.chainId) { mutableStateOf<ExecutionReview?>(null) }
     var reviewError by remember { mutableStateOf<String?>(null) }
 
@@ -48,32 +50,36 @@ fun SendScreen(route: Route.Send, navigator: Navigator) {
             return@PhoneFrame
         }
 
-        // Chain chip is read-only in this flow. We still render it so the
-        // user sees the network they're committing against. Tap is a no-op.
-        ChainChip(selected = chain, onSelect = { /* read-only */ })
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            ChainChip(selected = chain, onSelect = { /* read-only */ })
 
-        RecipientField(
-            value = state.recipientRaw,
-            onValueChange = { raw ->
-                state.recipientRaw = raw
-                state.recipientNormalized =
-                    if (validateRecipient(raw) == ValidationResult.Valid) normalizeRecipient(raw) else null
-            },
-        )
+            RecipientField(
+                value = state.recipientRaw,
+                onValueChange = { raw ->
+                    state.recipientRaw = raw
+                    state.recipientNormalized =
+                        if (validateRecipient(raw) == ValidationResult.Valid) normalizeRecipient(raw) else null
+                },
+            )
 
-        AmountField(
-            value = state.amountEth,
-            onValueChange = { state.amountEth = it },
-        )
+            AmountField(
+                value = state.amountEth,
+                onValueChange = { state.amountEth = it },
+            )
 
-        GasFields(
-            maxFee = state.maxFeeGwei,
-            priority = state.maxPriorityGwei,
-            onMaxFeeChange = { state.maxFeeGwei = it },
-            onPriorityChange = { state.maxPriorityGwei = it },
-        )
-
-        Spacer(Modifier.height(0.dp).weight(1f))
+            GasFields(
+                maxFee = state.maxFeeGwei,
+                priority = state.maxPriorityGwei,
+                onMaxFeeChange = { state.maxFeeGwei = it },
+                onPriorityChange = { state.maxPriorityGwei = it },
+            )
+        }
 
         Column(
             modifier = Modifier.fillMaxWidth(),
@@ -93,6 +99,7 @@ fun SendScreen(route: Route.Send, navigator: Navigator) {
                     try {
                         reviewError = null
                         review = execution.prepareSend(chain, wallet.address(chain).lowercase(), state)
+                        focusManager.clearFocus()
                     } catch (_: Exception) {
                         state.submission = SubmissionStatus.Error("Could not prepare review. Check pending operations and try again.")
                     }
@@ -131,4 +138,3 @@ fun canReview(state: SendState): Boolean {
     if (!priorityLeMaxFee(state.maxPriorityGwei, state.maxFeeGwei)) return false
     return true
 }
-
