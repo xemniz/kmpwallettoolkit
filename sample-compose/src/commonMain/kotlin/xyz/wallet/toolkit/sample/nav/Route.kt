@@ -3,7 +3,7 @@ package xyz.wallet.toolkit.sample.nav
 import androidx.navigation3.runtime.NavKey
 import kotlinx.serialization.Serializable
 
-/** Destinations for the sample-compose showcase. S2–S6 consume these. */
+/** Saved destinations in the sample app. */
 @Serializable
 sealed class Route : NavKey {
     @Serializable
@@ -22,7 +22,10 @@ sealed class Route : NavKey {
     data class Send(val chainId: Long) : Route()
 
     @Serializable
-    data class Swap(val chainId: Long) : Route()
+    data class Swap(val chainId: Long, val operationId: Long? = null) : Route()
+
+    @Serializable
+    data class Operation(val id: Long) : Route()
 
     @Serializable
     data class TxStatus(val txHash: String, val chainId: Long) : Route()

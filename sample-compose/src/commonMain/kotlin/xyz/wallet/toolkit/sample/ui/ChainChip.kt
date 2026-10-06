@@ -13,7 +13,7 @@ import xyz.wallet.toolkit.core.ChainRegistry
 import xyz.wallet.toolkit.core.SupportedChain
 import xyz.wallet.toolkit.sample.theme.WalletColors
 
-private val S1_CHAINS = setOf(SupportedChain.Ethereum, SupportedChain.Base)
+private val SHOWCASE_CHAINS = setOf(SupportedChain.Ethereum, SupportedChain.Base)
 
 @Composable
 fun ChainChip(
@@ -21,7 +21,7 @@ fun ChainChip(
     onSelect: (SupportedChain) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val chains = ChainRegistry.all().filter { it in S1_CHAINS }
+    val chains = ChainRegistry.all().filter { it in SHOWCASE_CHAINS }
     Row(
         modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(8.dp),

@@ -25,6 +25,7 @@ import wallet.core.ios.TWDataBytes
 import wallet.core.ios.TWDataCreateWithBytes
 import wallet.core.ios.TWDataDelete
 import wallet.core.ios.TWDataSize
+import wallet.core.ios.TWHashKeccak256
 import wallet.core.ios.TWHDWalletCreate
 import wallet.core.ios.TWHDWalletCreateWithMnemonic
 import wallet.core.ios.TWHDWalletDelete
@@ -36,9 +37,30 @@ import wallet.core.ios.TWPrivateKeyDelete
 import wallet.core.ios.TWStringCreateWithUTF8Bytes
 import wallet.core.ios.TWStringDelete
 import wallet.core.ios.TWStringUTF8Bytes
+import xyz.wallet.toolkit.utils.decimalToUnsignedBytes
 import xyz.wallet.toolkit.utils.hexToByteArray
+import xyz.wallet.toolkit.utils.requireUnsignedDecimal
+import xyz.wallet.toolkit.utils.toUnsignedBytes
 
 actual object TrustWalletCoreNativeBridge {
+    actual fun evmTransactionHash(rawSignedTransaction: ByteArray): ByteArray {
+        require(rawSignedTransaction.isNotEmpty()) { "Signed transaction must not be empty" }
+        val inputData = rawSignedTransaction.toTwData()
+        try {
+            val hashData = TWHashKeccak256(inputData)
+                ?: error("Trust Wallet Core hashing returned no output")
+            try {
+                return hashData.toByteArray().also {
+                    check(it.size == 32) { "Trust Wallet Core returned an invalid transaction hash" }
+                }
+            } finally {
+                TWDataDelete(hashData)
+            }
+        } finally {
+            TWDataDelete(inputData)
+        }
+    }
+
     actual fun createMnemonic(): String {
         return withTwString("") { passphrase ->
             val wallet = TWHDWalletCreate(128, passphrase)
@@ -74,6 +96,7 @@ actual object TrustWalletCoreNativeBridge {
             "Only EvmTransactionData transactions are currently supported for signing. " +
                 "Received: ${transaction::class.simpleName}"
         }
+        transaction.requireValidSigningInput(chain)
         return signEvmTransaction(mnemonic, chain, transaction)
     }
 
@@ -99,49 +122,56 @@ actual object TrustWalletCoreNativeBridge {
             "Payload chainId $chainId does not match routing chain ${chain.displayName} (${chain.id})"
         }
 
+        require(nonce >= 0) { "Nonce must not be negative" }
+        valueWei.requireUnsignedDecimal()
+        maxFeePerGasWei.requireUnsignedDecimal()
+        maxPriorityFeePerGasWei.requireUnsignedDecimal()
+        gasLimit.requireUnsignedDecimal()
+        dataHex?.hexToByteArray()
+
         return withTwString(mnemonic) { mnemonicString ->
             withTwString("") { passphrase ->
                 val wallet = TWHDWalletCreateWithMnemonic(mnemonicString, passphrase)
                     ?: error("Trust Wallet Core rejected the mnemonic")
                 try {
-            val nativePrivateKey = TWHDWalletGetKeyForCoin(wallet, chain.toCoinType())
-                ?: error("Trust Wallet Core failed to derive the private key")
-            val privateKey = try {
-                val data = TWPrivateKeyData(nativePrivateKey)
-                    ?: error("Trust Wallet Core returned no private key bytes")
-                try {
-                    data.toByteArray()
-                } finally {
-                    TWDataDelete(data)
-                }
-            } finally {
-                TWPrivateKeyDelete(nativePrivateKey)
-            }
-            val transfer = ProtoWriter().apply {
-                bytes(1, valueWei.decimalToUnsignedBytes())
-                if (dataHex != null) {
-                    bytes(2, dataHex.hexToByteArray())
-                }
-            }.toByteArray()
-            val ethTransaction = ProtoWriter().apply {
-                message(1, transfer)
-            }.toByteArray()
-            val input = ProtoWriter().apply {
-                bytes(1, chainId.toUnsignedBytes())
-                bytes(2, nonce.toUnsignedBytes())
-                int32(3, 1) // Ethereum.TransactionMode.Enveloped
-                bytes(5, gasLimit.decimalToUnsignedBytes())
-                bytes(6, maxPriorityFeePerGasWei.decimalToUnsignedBytes())
-                bytes(7, maxFeePerGasWei.decimalToUnsignedBytes())
-                string(8, to)
-                bytes(9, privateKey)
-                message(10, ethTransaction)
-                accessList.forEach { entry ->
-                    message(12, entry.jsonObject.toAccessProto())
-                }
-            }.toByteArray()
+                    val nativePrivateKey = TWHDWalletGetKeyForCoin(wallet, chain.toCoinType())
+                        ?: error("Trust Wallet Core failed to derive the private key")
+                    val privateKey = try {
+                        val data = TWPrivateKeyData(nativePrivateKey)
+                            ?: error("Trust Wallet Core returned no private key bytes")
+                        try {
+                            data.toByteArray()
+                        } finally {
+                            TWDataDelete(data)
+                        }
+                    } finally {
+                        TWPrivateKeyDelete(nativePrivateKey)
+                    }
+                    val transfer = ProtoWriter().apply {
+                        bytes(1, valueWei.decimalToUnsignedBytes())
+                        if (dataHex != null) {
+                            bytes(2, dataHex.hexToByteArray())
+                        }
+                    }.toByteArray()
+                    val ethTransaction = ProtoWriter().apply {
+                        message(1, transfer)
+                    }.toByteArray()
+                    val input = ProtoWriter().apply {
+                        bytes(1, chainId.toUnsignedBytes())
+                        bytes(2, nonce.toUnsignedBytes())
+                        int32(3, 1) // Ethereum.TransactionMode.Enveloped
+                        bytes(5, gasLimit.decimalToUnsignedBytes())
+                        bytes(6, maxPriorityFeePerGasWei.decimalToUnsignedBytes())
+                        bytes(7, maxFeePerGasWei.decimalToUnsignedBytes())
+                        string(8, to)
+                        bytes(9, privateKey)
+                        message(10, ethTransaction)
+                        accessList.forEach { entry ->
+                            message(12, entry.jsonObject.toAccessProto())
+                        }
+                    }.toByteArray()
 
-            signEthereumInput(input, chain.toCoinType())
+                    signEthereumInput(input, chain.toCoinType())
                 } finally {
                     TWHDWalletDelete(wallet)
                 }
@@ -159,40 +189,40 @@ actual object TrustWalletCoreNativeBridge {
                 val wallet = TWHDWalletCreateWithMnemonic(mnemonicString, passphrase)
                     ?: error("Trust Wallet Core rejected the mnemonic")
                 try {
-            val nativePrivateKey = TWHDWalletGetKeyForCoin(wallet, chain.toCoinType())
-                ?: error("Trust Wallet Core failed to derive the private key")
-            val privateKey = try {
-                val data = TWPrivateKeyData(nativePrivateKey)
-                    ?: error("Trust Wallet Core returned no private key bytes")
-                try {
-                    data.toByteArray()
-                } finally {
-                    TWDataDelete(data)
-                }
-            } finally {
-                TWPrivateKeyDelete(nativePrivateKey)
-            }
-            val transfer = ProtoWriter().apply {
-                bytes(1, tx.valueWei.decimalToUnsignedBytes())
-                val hex = tx.dataHex
-                if (!hex.isNullOrEmpty()) {
-                    bytes(2, hex.hexToByteArray())
-                }
-            }.toByteArray()
-            val ethTransaction = ProtoWriter().apply {
-                message(1, transfer)
-            }.toByteArray()
-            val input = ProtoWriter().apply {
-                bytes(1, tx.chainId.toUnsignedBytes())
-                bytes(2, tx.nonce.toUnsignedBytes())
-                bytes(4, tx.gasPriceWei.decimalToUnsignedBytes())
-                bytes(5, tx.gasLimit.decimalToUnsignedBytes())
-                string(8, tx.to)
-                bytes(9, privateKey)
-                message(10, ethTransaction)
-            }.toByteArray()
+                    val nativePrivateKey = TWHDWalletGetKeyForCoin(wallet, chain.toCoinType())
+                        ?: error("Trust Wallet Core failed to derive the private key")
+                    val privateKey = try {
+                        val data = TWPrivateKeyData(nativePrivateKey)
+                            ?: error("Trust Wallet Core returned no private key bytes")
+                        try {
+                            data.toByteArray()
+                        } finally {
+                            TWDataDelete(data)
+                        }
+                    } finally {
+                        TWPrivateKeyDelete(nativePrivateKey)
+                    }
+                    val transfer = ProtoWriter().apply {
+                        bytes(1, tx.valueWei.decimalToUnsignedBytes())
+                        val hex = tx.dataHex
+                        if (!hex.isNullOrEmpty()) {
+                            bytes(2, hex.hexToByteArray())
+                        }
+                    }.toByteArray()
+                    val ethTransaction = ProtoWriter().apply {
+                        message(1, transfer)
+                    }.toByteArray()
+                    val input = ProtoWriter().apply {
+                        bytes(1, tx.chainId.toUnsignedBytes())
+                        bytes(2, tx.nonce.toUnsignedBytes())
+                        bytes(4, tx.gasPriceWei.decimalToUnsignedBytes())
+                        bytes(5, tx.gasLimit.decimalToUnsignedBytes())
+                        string(8, tx.to)
+                        bytes(9, privateKey)
+                        message(10, ethTransaction)
+                    }.toByteArray()
 
-            signEthereumInput(input, chain.toCoinType())
+                    signEthereumInput(input, chain.toCoinType())
                 } finally {
                     TWHDWalletDelete(wallet)
                 }
@@ -389,38 +419,4 @@ private class ProtoReader(private val bytes: ByteArray) {
             else -> error("Unsupported protobuf wire type $wireType")
         }
     }
-}
-
-private fun Long.toUnsignedBytes(): ByteArray {
-    require(this >= 0) { "Negative values cannot be encoded as unsigned bytes" }
-    if (this == 0L) return byteArrayOf(0)
-    var current = this
-    val bytes = mutableListOf<Byte>()
-    while (current != 0L) {
-        bytes += (current and 0xff).toByte()
-        current = current ushr 8
-    }
-    return bytes.asReversed().toByteArray()
-}
-
-private fun String.decimalToUnsignedBytes(): ByteArray {
-    require(isNotEmpty()) { "Decimal value cannot be empty" }
-    require(all { it in '0'..'9' }) { "Decimal value must contain only digits" }
-    if (all { it == '0' }) return byteArrayOf(0)
-
-    val digits = map { it - '0' }.toMutableList()
-    val bytes = mutableListOf<Byte>()
-    while (digits.any { it != 0 }) {
-        var remainder = 0
-        for (i in digits.indices) {
-            val current = remainder * 10 + digits[i]
-            digits[i] = current / 256
-            remainder = current % 256
-        }
-        bytes += remainder.toByte()
-        while (digits.size > 1 && digits.first() == 0) {
-            digits.removeAt(0)
-        }
-    }
-    return bytes.asReversed().toByteArray()
 }

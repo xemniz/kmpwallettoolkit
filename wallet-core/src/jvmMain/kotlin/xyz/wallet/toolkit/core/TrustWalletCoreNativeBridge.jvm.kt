@@ -1,10 +1,13 @@
 package xyz.wallet.toolkit.core
 
 /**
- * JVM stub – Trust Wallet Core native bindings are Android-only.
+ * JVM stub; native implementations are available on Android and iOS.
  * Use a mock [WalletEngine] for JVM/desktop unit tests.
  */
 actual object TrustWalletCoreNativeBridge {
+    actual fun evmTransactionHash(rawSignedTransaction: ByteArray): ByteArray =
+        jvmNotSupported("evmTransactionHash")
+
     actual fun createMnemonic(): String =
         jvmNotSupported("createMnemonic")
 

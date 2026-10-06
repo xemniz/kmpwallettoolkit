@@ -73,7 +73,9 @@ private data class RecordedEip1559Call(
     val mnemonic: String,
     val chain: SupportedChain,
     val payload: ByteArray,
-)
+) {
+    override fun toString(): String = "RecordedEip1559Call(redacted)"
+}
 
 private class RecordingEngine(private val returning: ByteArray) : WalletEngine {
     val eip1559Calls = mutableListOf<RecordedEip1559Call>()

@@ -28,8 +28,6 @@ class BnbSmartChainTest {
 
     @Test
     fun registryAllMatchesEnumEntriesCount() {
-        // Count-based assertion: robust to concurrent additions
-        // (e.g. spec E adding Optimism). Do NOT replace with a hardcoded list.
         assertTrue(
             ChainRegistry.all().size >= 6,
             "expected at least six registered chains, got ${ChainRegistry.all().size}",

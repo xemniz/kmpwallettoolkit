@@ -8,7 +8,6 @@ data class SwapUiState(
     val buy: TokenRef,
     val amountInput: String = "",
     val quote: QuoteStatus = QuoteStatus.Idle,
-    val submission: SubmissionStatus = SubmissionStatus.Idle,
     val searchQuery: String = "",
     val searchResults: SearchStatus = SearchStatus.Idle,
 )
@@ -18,12 +17,6 @@ sealed class QuoteStatus {
     object Loading : QuoteStatus()
     data class Value(val quote: SwapQuote) : QuoteStatus()
     data class Error(val userMessage: String) : QuoteStatus()
-}
-
-sealed class SubmissionStatus {
-    object Idle : SubmissionStatus()
-    object Submitting : SubmissionStatus()
-    data class Error(val userMessage: String) : SubmissionStatus()
 }
 
 sealed class SearchStatus {

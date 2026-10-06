@@ -17,7 +17,7 @@ class ChainRegistryTest {
     @Test
     fun registryContainsOptimismAlongsideOriginalFour() {
         val all = ChainRegistry.all()
-        // Size is a lower bound: spec F may land another entry concurrently.
+        // Additional supported chains do not invalidate the required-chain checks.
         assertTrue(
             all.size >= 5,
             "expected at least five registered chains, got ${all.size}",

@@ -80,6 +80,9 @@ fun PendingState(
             )
         }
         PendingChainBadge(chain)
+        if (state.retrying) {
+            Text("Network check failed. Retrying…", color = WalletColors.textSecondary)
+        }
         MonoText(
             text = shortenHash(txHash),
             color = WalletColors.textSecondary,

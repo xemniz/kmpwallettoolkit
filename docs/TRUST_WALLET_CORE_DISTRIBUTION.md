@@ -25,7 +25,7 @@ The iOS bridge calls the WalletCore C API directly for:
 - Ethereum legacy signing
 - Ethereum EIP-1559 signing
 
-`TrustWalletCoreIosAdapter` remains available as an escape hatch for consumers who want to provide their own backend.
+Custom backends implement `WalletEngine` and are supplied through `WalletKit.withEngine(...)`.
 
 Upstream release assets for `4.6.0`:
 

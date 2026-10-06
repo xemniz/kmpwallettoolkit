@@ -4,18 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 
-/**
- * In-memory holder for the Send flow form.
- *
- * Intentionally NOT a `data class`: the compiler-generated `toString` /
- * `equals` would expose recipient / amount / gas values — all of which are
- * transactionally sensitive (CLAUDE.md §4.1). The hand-rolled [toString]
- * below returns a fixed redacted literal; do not add fields to it.
- *
- * The class is a plain `class` with `mutableStateOf`-delegated `var`s so
- * Compose observes field changes. `chainId` is pinned from `Route.Send`
- * and not editable by the user (spec: no chain switching inside Send).
- */
+/** Observable form state. Its string representation excludes entered transaction details. */
 class SendState(chainId: Long) {
     var recipientRaw: String by mutableStateOf("")
     var recipientNormalized: String? by mutableStateOf(null)

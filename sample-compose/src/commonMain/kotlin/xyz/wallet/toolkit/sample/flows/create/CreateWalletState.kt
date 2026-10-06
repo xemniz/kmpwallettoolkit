@@ -5,13 +5,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import kotlin.random.Random
 import xyz.wallet.toolkit.core.Wallet
+import xyz.wallet.toolkit.sample.state.WalletSession
 
 /**
- * In-memory state holder for the Create-wallet flow.
- *
- * Intentionally NOT a data class: auto-generated `toString()` would expose the
- * stored `Wallet.exportMnemonic()` via `Wallet.toString()` and leak the confirm-challenge
- * word list. The hand-rolled `toString()` below redacts both (CLAUDE.md §4.1).
+ * The confirmation challenge contains recovery words and stays out of [toString].
  */
 class CreateWalletState {
     var wallet: Wallet? by mutableStateOf<Wallet?>(null)
@@ -20,6 +17,17 @@ class CreateWalletState {
     var confirmOptions: List<String> by mutableStateOf(emptyList())
     var confirmed: Boolean by mutableStateOf(false)
     var error: String? by mutableStateOf<String?>(null)
+
+    fun save(session: WalletSession): Boolean {
+        val created = wallet ?: return false
+        if (!confirmed) return false
+        if (!session.login(created.exportMnemonic(), created)) {
+            error = "Could not save wallet. Retry saving it."
+            return false
+        }
+        error = null
+        return true
+    }
 
     /**
      * Prepares the confirm-word challenge from an already-revealed mnemonic.
@@ -30,13 +38,11 @@ class CreateWalletState {
     fun prepareConfirm(mnemonic: String): Boolean {
         val words = mnemonic.trim().split(Regex("\\s+"))
         if (words.size != 12) return false
-        // §4.2 UX-only: random pick from a list already displayed on screen; not security material.
+        // This chooses a UI challenge from existing words; it generates no wallet entropy.
         val index = Random.nextInt(0, words.size)
         val correct = words[index]
         val decoyPool = words.toMutableList().apply { removeAt(index) }.distinct().filter { it != correct }
-        // §4.2 UX-only: random pick from a list already displayed on screen; not security material.
         val decoys = decoyPool.shuffled(Random).take(3)
-        // §4.2 UX-only: random pick from a list already displayed on screen; not security material.
         val options = (decoys + correct).shuffled(Random)
         confirmIndex = index
         confirmOptions = options

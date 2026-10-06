@@ -3,18 +3,7 @@ package xyz.wallet.toolkit.evm
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
-/**
- * Locks in the emit-defaulted-fields invariant for Eip1559Transaction.toSigningPayload.
- *
- * The canonical signing payload must always include `valueWei`, `accessList`, and
- * `dataHex` keys regardless of whether the caller populated them, because those
- * fields are inputs to the signed hash. If they were omitted when left at their
- * defaults, a constructed transaction and a fully-populated transaction with the
- * same defaults would hash differently across signer adapters.
- *
- * This is an invariance check, not a byte-for-byte drift guard — the latter is
- * `Eip1559GoldenVectorTest.goldenJsonDoesNotDrift`.
- */
+/** The canonical signing JSON includes default values as well as explicitly populated fields. */
 class Eip1559PayloadInvarianceTest {
     @Test
     fun toSigningPayloadAlwaysEmitsDefaultedFields() {

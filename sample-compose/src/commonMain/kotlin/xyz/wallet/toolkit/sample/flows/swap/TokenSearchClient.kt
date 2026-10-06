@@ -23,10 +23,14 @@ import xyz.wallet.toolkit.sample.secrets.Secrets
  * No auth header is ever logged. Results are untrusted: we do not echo
  * their content into exception messages or logs.
  */
+interface TokenSearchSource {
+    suspend fun searchTokens(query: String, chain: SupportedChain): List<TokenRef>
+}
+
 class TokenSearchClient(
     private val http: HttpClient = defaultHttp(),
     private val apiKey: String = Secrets.ZERION_API_KEY,
-) {
+) : TokenSearchSource {
 
     init {
         check(apiKey.isNotBlank() && apiKey != "REPLACE_ME") {
@@ -38,7 +42,7 @@ class TokenSearchClient(
     private val authHeader: String =
         "Basic " + Base64.encode("$apiKey:".encodeToByteArray())
 
-    suspend fun searchTokens(query: String, chain: SupportedChain): List<TokenRef> {
+    override suspend fun searchTokens(query: String, chain: SupportedChain): List<TokenRef> {
         val trimmed = query.trim()
         if (trimmed.isEmpty()) return emptyList()
         val chainId = chain.toZerionChainId() ?: return emptyList()

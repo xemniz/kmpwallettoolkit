@@ -19,22 +19,14 @@ import xyz.wallet.toolkit.sample.platform.rememberClipboardTextHandler
 import xyz.wallet.toolkit.sample.theme.WalletColors
 import xyz.wallet.toolkit.sample.ui.MonoText
 
-/**
- * Renders the active wallet's EVM address as a tap-to-copy affordance.
- *
- * Address casing is normalized to lowercase at both display and copy sites
- * (CLAUDE.md §4.7). The shortened form is display-only; the clipboard
- * always receives the full lowercase address.
- */
 @Composable
 fun AddressHeader(
     address: String,
     modifier: Modifier = Modifier,
 ) {
     val lower = address.lowercase()
-    val shortened = shorten(lower)
     val clipboard = rememberClipboardTextHandler()
-    var copied by remember { mutableStateOf(false) }
+    var copied by remember(lower) { mutableStateOf(false) }
 
     if (copied) {
         LaunchedEffect(copied) {
@@ -53,15 +45,10 @@ fun AddressHeader(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        MonoText(text = shortened)
+        MonoText(text = lower)
         Text(
             text = if (copied) "Copied" else "Tap to copy",
             color = WalletColors.textSecondary,
         )
     }
-}
-
-private fun shorten(addr: String): String {
-    if (addr.length < 10) return addr
-    return "${addr.take(6)}...${addr.takeLast(4)}"
 }

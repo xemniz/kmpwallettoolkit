@@ -14,13 +14,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import xyz.wallet.toolkit.sample.theme.MonoTextStyle
 import xyz.wallet.toolkit.sample.theme.WalletColors
 
-/**
- * Multi-line paste field for a BIP-39 mnemonic.
- *
- * CLAUDE.md §4.1: this composable must not log [value]. It also disables
- * soft-keyboard autocorrect / suggestions (ASCII + no capitalization) so the
- * IME does not capture words into a learned dictionary.
- */
+/** Disable autocorrection for recovery phrases; never log the field value. */
 @Composable
 fun MnemonicPasteField(
     value: String,

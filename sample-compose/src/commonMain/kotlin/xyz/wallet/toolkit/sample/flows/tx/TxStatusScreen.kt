@@ -20,14 +20,6 @@ import xyz.wallet.toolkit.sample.theme.WalletColors
 import xyz.wallet.toolkit.sample.ui.PhoneFrame
 import xyz.wallet.toolkit.sample.ui.PrimaryButton
 
-/**
- * S6 tx-status screen. Resolves the chain from [Route.TxStatus.chainId] via
- * [ChainRegistry], spins up an RPC client through [RpcClientFactory], and
- * hosts the sealed [TxStatusState] machine. The polling effect is scoped to
- * a `LaunchedEffect(txHash)` (see [TxPollingEffect]) so navigating away
- * cancels the loop through structured concurrency — no GlobalScope, no
- * detached `rememberCoroutineScope().launch` that would outlive the screen.
- */
 @Composable
 fun TxStatusScreen(route: Route.TxStatus, navigator: Navigator) {
     PhoneFrame {

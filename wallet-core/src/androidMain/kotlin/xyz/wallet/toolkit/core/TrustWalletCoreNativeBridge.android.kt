@@ -10,14 +10,24 @@ import kotlinx.serialization.json.jsonPrimitive
 import wallet.core.java.AnySigner
 import wallet.core.jni.CoinType
 import wallet.core.jni.HDWallet
+import wallet.core.jni.Hash
 import wallet.core.jni.proto.Ethereum
+import xyz.wallet.toolkit.utils.decimalToUnsignedBytes
 import xyz.wallet.toolkit.utils.hexToByteArray
-import java.math.BigInteger
+import xyz.wallet.toolkit.utils.requireUnsignedDecimal
+import xyz.wallet.toolkit.utils.toUnsignedBytes
 
 actual object TrustWalletCoreNativeBridge {
 
     init {
         System.loadLibrary("TrustWalletCore")
+    }
+
+    actual fun evmTransactionHash(rawSignedTransaction: ByteArray): ByteArray {
+        require(rawSignedTransaction.isNotEmpty()) { "Signed transaction must not be empty" }
+        return Hash.keccak256(rawSignedTransaction).also {
+            check(it.size == 32) { "Trust Wallet Core returned an invalid transaction hash" }
+        }
     }
 
     actual fun createMnemonic(): String {
@@ -39,6 +49,7 @@ actual object TrustWalletCoreNativeBridge {
             "Only EvmTransactionData transactions are currently supported for signing. " +
                 "Received: ${transaction::class.simpleName}"
         }
+        transaction.requireValidSigningInput(chain)
         return signEvmTransaction(mnemonic, chain, transaction)
     }
 
@@ -60,12 +71,17 @@ actual object TrustWalletCoreNativeBridge {
             ?.takeIf { it.isNotEmpty() }
         val accessList = json["accessList"]?.jsonArray ?: JsonArray(emptyList())
 
-        // Payload-declared chainId must match the routing chain. The outer
-        // Wallet.signEip1559Transaction extension also guards this, but the
-        // bridge stays honest about its invariants.
+        // Direct callers must satisfy the same chain invariant as the typed API.
         require(chainId == chain.id) {
             "Payload chainId $chainId does not match routing chain ${chain.displayName} (${chain.id})"
         }
+
+        require(nonce >= 0) { "Nonce must not be negative" }
+        valueWei.requireUnsignedDecimal()
+        maxFeePerGasWei.requireUnsignedDecimal()
+        maxPriorityFeePerGasWei.requireUnsignedDecimal()
+        gasLimit.requireUnsignedDecimal()
+        dataHex?.hexToByteArray()
 
         val coinType = chain.toCoinType()
         val wallet = HDWallet(mnemonic, "")
@@ -174,27 +190,7 @@ actual object TrustWalletCoreNativeBridge {
         SupportedChain.BnbSmartChain -> CoinType.SMARTCHAIN
     }
 
-    /** Convert a [Long] to a big-endian unsigned [ByteString]. */
-    private fun Long.toByteString(): ByteString {
-        if (this == 0L) return ByteString.copyFrom(byteArrayOf(0))
-        return BigInteger.valueOf(this).toUnsignedByteString()
-    }
+    private fun Long.toByteString(): ByteString = ByteString.copyFrom(toUnsignedBytes())
 
-    /** Convert a decimal number string (e.g. "1000000000") to a big-endian unsigned [ByteString]. */
-    private fun String.decimalToByteString(): ByteString {
-        val bi = BigInteger(this)
-        if (bi == BigInteger.ZERO) return ByteString.copyFrom(byteArrayOf(0))
-        return bi.toUnsignedByteString()
-    }
-
-    private fun BigInteger.toUnsignedByteString(): ByteString {
-        val bytes = toByteArray()
-        // BigInteger.toByteArray() prepends 0x00 for positive values to indicate sign; strip it.
-        val trimmed = if (bytes.size > 1 && bytes[0] == 0.toByte()) {
-            bytes.copyOfRange(1, bytes.size)
-        } else {
-            bytes
-        }
-        return ByteString.copyFrom(trimmed)
-    }
+    private fun String.decimalToByteString(): ByteString = ByteString.copyFrom(decimalToUnsignedBytes())
 }

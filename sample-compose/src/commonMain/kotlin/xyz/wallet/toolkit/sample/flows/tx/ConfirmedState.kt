@@ -58,7 +58,7 @@ fun ConfirmedState(
             text = shortenHash(receipt.transactionHash),
             color = WalletColors.textSecondary,
         )
-        // Addresses are lowercased per CLAUDE.md §4.7.
+        // Keep checksum casing out of address comparisons.
         val toText = receipt.to?.lowercase()
         if (toText != null) {
             MonoText(

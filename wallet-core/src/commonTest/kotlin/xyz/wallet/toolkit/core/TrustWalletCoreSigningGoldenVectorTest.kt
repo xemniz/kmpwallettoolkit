@@ -4,7 +4,26 @@ import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import xyz.wallet.toolkit.utils.hexToByteArray
 
+// Fixtures independently reproduced with ethers 6.15.0; see signing-vectors.md.
 class TrustWalletCoreSigningGoldenVectorTest {
+    @Test
+    fun hashesLegacySignedTransactionAgainstEthersVectorWhenNativeRuntimeIsAvailable() {
+        if (!isTrustWalletCoreAvailableInCurrentTestRuntime()) return
+        assertContentEquals(
+            "0x734eb79981ee1c1819cd3414c8f2b07a0a4fad73bbb7e6cebc348318acf1231d".hexToByteArray(),
+            TrustWalletCoreNativeBridge.evmTransactionHash(legacySignedHex.hexToByteArray()),
+        )
+    }
+
+    @Test
+    fun hashesType2SignedTransactionAgainstEthersVectorWhenNativeRuntimeIsAvailable() {
+        if (!isTrustWalletCoreAvailableInCurrentTestRuntime()) return
+        assertContentEquals(
+            "0x7b6daebe9bdcf98b876366bedeff2388746e6bb38cb2f4a54d460bafc7e17bba".hexToByteArray(),
+            TrustWalletCoreNativeBridge.evmTransactionHash(eip1559SignedHex.hexToByteArray()),
+        )
+    }
+
     @Test
     fun signsLegacyEthereumTransactionAgainstEthersVectorWhenNativeRuntimeIsAvailable() {
         if (!isTrustWalletCoreAvailableInCurrentTestRuntime()) return

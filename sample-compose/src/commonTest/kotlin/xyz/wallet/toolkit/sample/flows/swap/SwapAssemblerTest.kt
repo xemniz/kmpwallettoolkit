@@ -1,24 +1,28 @@
 package xyz.wallet.toolkit.sample.flows.swap
 
 import xyz.wallet.toolkit.core.SupportedChain
+import xyz.wallet.toolkit.sample.execution.parseNonceHex
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
 class SwapAssemblerTest {
     @Test
-    fun parseHexLongRequiresZeroXPrefix() {
-        assertEquals(0L, parseHexLong("0x0"))
-        assertEquals(26L, parseHexLong("0x1a"))
-        assertEquals(26L, parseHexLong("0X1A"))
-        assertNull(parseHexLong("1a"))
+    fun parseNonceHexRequiresZeroXPrefix() {
+        assertEquals(0L, parseNonceHex("0x0"))
+        assertEquals(26L, parseNonceHex("0x1a"))
+        assertEquals(26L, parseNonceHex("0X1A"))
+        assertNull(parseNonceHex("1a"))
     }
 
     @Test
-    fun parseHexLongRejectsMalformedInput() {
-        assertNull(parseHexLong(""))
-        assertNull(parseHexLong("0x"))
-        assertNull(parseHexLong("0xzz"))
+    fun parseNonceHexRejectsMalformedInput() {
+        assertNull(parseNonceHex(""))
+        assertNull(parseNonceHex("0x"))
+        assertNull(parseNonceHex("0xzz"))
+        assertNull(parseNonceHex("0x-1"))
+        assertNull(parseNonceHex("0x+1"))
+        assertNull(parseNonceHex("0x8000000000000000"))
     }
 
     @Test
@@ -48,6 +52,7 @@ class SwapAssemblerTest {
             spender = "0x0000000000001ff3684f28c67538d4d072c22734",
             nonce = 7,
             gasPriceWei = "123456789",
+            amountRaw = "1000000",
         )
 
         assertEquals(8453L, tx.chainId)
@@ -59,7 +64,7 @@ class SwapAssemblerTest {
         assertEquals(
             "0x095ea7b3" +
                 "0000000000000000000000000000000000001ff3684f28c67538d4d072c22734" +
-                "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+                "00000000000000000000000000000000000000000000000000000000000f4240",
             tx.dataHex,
         )
     }

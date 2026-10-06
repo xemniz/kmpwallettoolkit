@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -19,7 +18,6 @@ import xyz.wallet.toolkit.core.Wallet
 import xyz.wallet.toolkit.sample.nav.Navigator
 import xyz.wallet.toolkit.sample.nav.Route
 import xyz.wallet.toolkit.sample.state.LocalWalletSession
-import xyz.wallet.toolkit.sample.state.SecureWalletStorageRuntime
 import xyz.wallet.toolkit.sample.theme.WalletColors
 import xyz.wallet.toolkit.sample.ui.BackBar
 import xyz.wallet.toolkit.sample.ui.PhoneFrame
@@ -27,27 +25,11 @@ import xyz.wallet.toolkit.sample.ui.PrimaryButton
 
 private enum class Step { Intro, Reveal, Confirm }
 
-/**
- * Top-level Create-wallet flow. Intro → Reveal → Confirm. On a correct
- * confirm pick, installs the generated wallet on `WalletSession` and routes
- * to `Route.Home` exactly once (the `LaunchedEffect` keys on `confirmed`).
- */
 @Composable
 fun CreateWalletScreen(navigator: Navigator) {
     val session = LocalWalletSession.current
     val state = remember { CreateWalletState() }
     var step by remember { mutableStateOf(Step.Intro) }
-
-    LaunchedEffect(state.confirmed) {
-        if (state.confirmed) {
-            val created = state.wallet
-            if (created != null) {
-                runCatching { SecureWalletStorageRuntime.get().save(created.exportMnemonic()) }
-                session.wallet = created
-                navigator.replace(Route.Home)
-            }
-        }
-    }
 
     PhoneFrame {
         BackBar(
@@ -64,7 +46,6 @@ fun CreateWalletScreen(navigator: Navigator) {
                         val result = runCatching { Wallet.createWithTrustWalletCore() }
                         val created = result.getOrNull()
                         if (created == null) {
-                            // Intentionally drop throwable.message — may reference sensitive material (CLAUDE.md §4.1).
                             state.error = "Wallet creation failed"
                         } else {
                             val prepared = state.prepareConfirm(created.exportMnemonic())
@@ -75,6 +56,7 @@ fun CreateWalletScreen(navigator: Navigator) {
                                 state.wallet = created
                                 state.error = null
                                 state.revealed = false
+                                state.confirmed = false
                                 step = Step.Reveal
                             }
                         }
@@ -109,10 +91,14 @@ fun CreateWalletScreen(navigator: Navigator) {
                             if (correct != null && picked == correct) {
                                 state.error = null
                                 state.confirmed = true
+                                if (state.save(session)) navigator.replace(Route.Home)
                             } else {
                                 state.error = "Try again"
                             }
                         }
+                    },
+                    onRetrySave = {
+                        if (state.save(session)) navigator.replace(Route.Home)
                     },
                 )
             }
@@ -172,17 +158,26 @@ private fun RevealStep(
 }
 
 @Composable
-private fun ConfirmStep(state: CreateWalletState, onPick: (String) -> Unit) {
+private fun ConfirmStep(
+    state: CreateWalletState,
+    onPick: (String) -> Unit,
+    onRetrySave: () -> Unit,
+) {
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text(text = "Confirm your phrase", color = WalletColors.textPrimary)
-        ConfirmWordStep(
-            targetIndexOneBased = state.confirmIndex + 1,
-            options = state.confirmOptions,
-            onPick = onPick,
-            errorHint = state.error,
-        )
+        if (state.confirmed) {
+            state.error?.let { Text(text = it, color = WalletColors.textSecondary) }
+            PrimaryButton(text = "Retry saving", onClick = onRetrySave)
+        } else {
+            ConfirmWordStep(
+                targetIndexOneBased = state.confirmIndex + 1,
+                options = state.confirmOptions,
+                onPick = onPick,
+                errorHint = state.error,
+            )
+        }
     }
 }

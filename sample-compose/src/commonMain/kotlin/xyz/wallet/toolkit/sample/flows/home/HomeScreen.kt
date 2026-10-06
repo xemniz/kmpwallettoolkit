@@ -43,7 +43,11 @@ import xyz.wallet.toolkit.sample.portfolio.PortfolioState
 import xyz.wallet.toolkit.sample.portfolio.formatPercent
 import xyz.wallet.toolkit.sample.portfolio.formatUsd
 import xyz.wallet.toolkit.sample.state.LocalWalletSession
-import xyz.wallet.toolkit.sample.state.SecureWalletStorageRuntime
+import xyz.wallet.toolkit.sample.execution.TransactionExecutionRepository
+import xyz.wallet.toolkit.sample.execution.OperationStatus
+import xyz.wallet.toolkit.sample.execution.OperationKind
+import xyz.wallet.toolkit.core.ChainRegistry
+import xyz.wallet.toolkit.sample.ui.displayName
 import xyz.wallet.toolkit.sample.theme.WalletColors
 import xyz.wallet.toolkit.sample.ui.MonoText
 import xyz.wallet.toolkit.sample.ui.PhoneFrame
@@ -51,24 +55,16 @@ import xyz.wallet.toolkit.sample.ui.PhoneFrame
 private val homeChains: List<SupportedChain> =
     listOf(SupportedChain.Ethereum, SupportedChain.Base)
 
-/**
- * Portfolio-style Home screen (design A). Renders:
- *  - address + chain chip (chain chip opens a Ethereum/Base switcher dialog)
- *  - total USD for the selected chain + 24h delta
- *  - Send / Receive / Swap (disabled) / Buy (disabled) action tiles
- *  - per-token Assets list from Zerion
- *  - Sign out
- *
- * Send is enabled only when the selected chain has a loaded portfolio with
- * a non-zero native balance — prevents entering the send flow with no ETH
- * to pay for gas.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(navigator: Navigator, vm: HomeViewModel = koinInject()) {
     val session = LocalWalletSession.current
     val wallet = session.wallet
     val ui by vm.ui.collectAsState()
+    val execution: TransactionExecutionRepository = koinInject()
+    val operations by execution.operations.collectAsState()
+    val storageError by execution.storageError.collectAsState()
+    var signOutError by remember { mutableStateOf<String?>(null) }
 
     var showReceive by remember { mutableStateOf(false) }
     var showSignOut by remember { mutableStateOf(false) }
@@ -92,7 +88,22 @@ fun HomeScreen(navigator: Navigator, vm: HomeViewModel = koinInject()) {
         val selectedChain = homeChains.firstOrNull { it.id == ui.selectedChainId }
             ?: SupportedChain.Ethereum
         val portfolio = ui.portfolioFor(ui.selectedChainId)
-
+        val walletOperations = operations.filter { operation ->
+            val chain = ChainRegistry.byId(operation.chainId)
+            chain != null && operation.owner == wallet.address(chain).lowercase()
+        }
+        val latestId = walletOperations.maxOfOrNull { it.id }
+        val visibleOperations = walletOperations.filter {
+            it.id == latestId || it.status in setOf(
+                OperationStatus.Executing, OperationStatus.Monitoring,
+                OperationStatus.NeedsReview, OperationStatus.UnknownOutcome,
+            )
+        }.sortedByDescending { it.id }
+        val busy = walletOperations.any { it.chainId == ui.selectedChainId && it.status in setOf(OperationStatus.Executing, OperationStatus.Monitoring) }
+        if (storageError) {
+            Text("Saved transaction progress is unavailable. New submissions are paused.", color = WalletColors.textSecondary)
+            TextButton(onClick = { execution.retryStorage() }) { Text("Retry storage") }
+        }
         PullToRefreshBox(
             isRefreshing = portfolio is PortfolioState.Loading,
             onRefresh = { vm.refresh(wallet, selectedChain) },
@@ -105,9 +116,10 @@ fun HomeScreen(navigator: Navigator, vm: HomeViewModel = koinInject()) {
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 TopBar(
-                    address = wallet.address(SupportedChain.Ethereum).lowercase(),
+                    address = wallet.address(selectedChain).lowercase(),
                     chain = selectedChain,
                     onChainClick = { showChainPicker = true },
+                    onAddressClick = { showReceive = true },
                 )
 
                 Spacer(Modifier.height(8.dp))
@@ -117,13 +129,42 @@ fun HomeScreen(navigator: Navigator, vm: HomeViewModel = koinInject()) {
                 Spacer(Modifier.height(16.dp))
 
                 ActionTiles(
-                    sendEnabled = portfolio is PortfolioState.Value && hasNativeBalance(portfolio),
+                    sendEnabled = !storageError && !busy && portfolio is PortfolioState.Value && hasNativeBalance(portfolio),
+                    swapEnabled = !storageError && !busy,
                     onSend = { navigator.push(Route.Send(chainId = ui.selectedChainId)) },
                     onReceive = { showReceive = true },
                     onSwap = { navigator.push(Route.Swap(chainId = ui.selectedChainId)) },
                 )
 
                 Spacer(Modifier.height(20.dp))
+
+                if (visibleOperations.isNotEmpty()) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        visibleOperations.forEach { operation ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(WalletColors.surface)
+                                    .border(1.dp, WalletColors.outline, RoundedCornerShape(12.dp))
+                                    .clickable { navigator.push(Route.Operation(operation.id)) }
+                                    .padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            ) {
+                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    val kind = if (operation.kind == OperationKind.Send) "Send" else "Swap"
+                                    Text("$kind · ${ChainRegistry.byId(operation.chainId)?.displayName}", color = WalletColors.textPrimary)
+                                    Text(operation.status.displayName(), color = WalletColors.textSecondary, fontSize = 12.sp)
+                                }
+                                Text("Details ›", color = WalletColors.accent, fontSize = 12.sp)
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(16.dp))
+                }
 
                 AssetsHeader(count = (portfolio as? PortfolioState.Value)?.snapshot?.tokens?.size)
 
@@ -136,22 +177,30 @@ fun HomeScreen(navigator: Navigator, vm: HomeViewModel = koinInject()) {
             }
         }
 
+        signOutError?.let { Text(it, color = WalletColors.textSecondary) }
         TextButton(
-            onClick = { showSignOut = true },
+            onClick = { signOutError = null; showSignOut = true },
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text("Sign out", color = WalletColors.textSecondary)
         }
     }
 
-    if (showReceive) {
+    if (showReceive && wallet != null) {
+        val receiveChain = homeChains.firstOrNull { it.id == ui.selectedChainId }
+            ?: SupportedChain.Ethereum
         AlertDialog(
             onDismissRequest = { showReceive = false },
             confirmButton = {
                 TextButton(onClick = { showReceive = false }) { Text("OK") }
             },
             title = { Text("Receive") },
-            text = { Text("Coming soon") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("Network: ${receiveChain.displayName}")
+                    AddressHeader(address = wallet.address(receiveChain))
+                }
+            },
         )
     }
 
@@ -188,11 +237,12 @@ fun HomeScreen(navigator: Navigator, vm: HomeViewModel = koinInject()) {
             confirmButton = {
                 TextButton(onClick = {
                     showSignOut = false
-                    runCatching { SecureWalletStorageRuntime.get().clear() }
-                    vm.clearCache()
-                    session.wallet = null
-                    session.lastTxHash = null
-                    navigator.replace(Route.Welcome)
+                    if (session.logout()) {
+                        vm.clearCache()
+                        navigator.replace(Route.Welcome)
+                    } else {
+                        signOutError = "Could not remove the recovery phrase. Your wallet is still signed in. Try again."
+                    }
                 }) { Text("Sign out") }
             },
             dismissButton = {
@@ -216,13 +266,14 @@ private fun TopBar(
     address: String,
     chain: SupportedChain,
     onChainClick: () -> Unit,
+    onAddressClick: () -> Unit,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column {
+        Column(modifier = Modifier.clickable(onClick = onAddressClick)) {
             Text(
                 text = "Main wallet",
                 color = WalletColors.textPrimary,
@@ -230,6 +281,7 @@ private fun TopBar(
                 fontSize = 13.sp,
             )
             MonoText(text = shortAddr(address))
+            Text("View address", color = WalletColors.textSecondary, fontSize = 11.sp)
         }
         Box(
             modifier = Modifier
@@ -297,6 +349,7 @@ private fun DeltaLabel(delta: PortfolioChange24h) {
 @Composable
 private fun ActionTiles(
     sendEnabled: Boolean,
+    swapEnabled: Boolean,
     onSend: () -> Unit,
     onReceive: () -> Unit,
     onSwap: () -> Unit,
@@ -319,6 +372,7 @@ private fun ActionTiles(
         )
         ActionTile(
             label = "Swap",
+            enabled = swapEnabled,
             modifier = Modifier.weight(1f),
             onClick = onSwap,
         )

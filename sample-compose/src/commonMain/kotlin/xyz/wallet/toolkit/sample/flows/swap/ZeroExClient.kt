@@ -12,27 +12,7 @@ import kotlinx.serialization.json.Json
 import xyz.wallet.toolkit.core.SupportedChain
 import xyz.wallet.toolkit.sample.secrets.Secrets
 
-/**
- * Minimal 0x Swap client — the AllowanceHolder variant. Returns a signed-
- * able EVM transaction the caller can hand to `wallet.signEip1559Transaction`.
- *
- * Secrecy:
- *  - The API key lives on the `0x-api-key` header. It is never logged and
- *    `toString()` returns a redacted form.
- *  - Responses contain the user's wallet in `taker`-shaped fields —
- *    callers must not interpolate exception messages with raw responses.
- */
-class ZeroExClient(
-    private val http: HttpClient = defaultHttp(),
-    private val apiKey: String = Secrets.ZEROX_API_KEY,
-) {
-
-    init {
-        check(apiKey.isNotBlank() && apiKey != "REPLACE_ME") {
-            "0x API key is not configured. Paste it into Secrets.kt."
-        }
-    }
-
+interface SwapQuoteSource {
     suspend fun fetchQuote(
         chain: SupportedChain,
         sell: TokenRef,
@@ -40,6 +20,27 @@ class ZeroExClient(
         sellAmountRaw: String,
         taker: String,
         slippageBps: Int = 100,
+    ): SwapQuote
+}
+
+class ZeroExClient(
+    private val http: HttpClient = defaultHttp(),
+    private val apiKey: String = Secrets.ZEROX_API_KEY,
+) : SwapQuoteSource {
+
+    init {
+        check(apiKey.isNotBlank() && apiKey != "REPLACE_ME") {
+            "0x API key is not configured. Paste it into Secrets.kt."
+        }
+    }
+
+    override suspend fun fetchQuote(
+        chain: SupportedChain,
+        sell: TokenRef,
+        buy: TokenRef,
+        sellAmountRaw: String,
+        taker: String,
+        slippageBps: Int,
     ): SwapQuote {
         val response: QuoteResponse = http
             .get("https://api.0x.org/swap/allowance-holder/quote") {
@@ -63,7 +64,6 @@ class ZeroExClient(
             install(ContentNegotiation) {
                 json(Json {
                     ignoreUnknownKeys = true
-                    isLenient = true
                 })
             }
         }
@@ -72,6 +72,7 @@ class ZeroExClient(
 
 @Serializable
 private data class QuoteResponse(
+    val allowanceTarget: String?,
     val buyAmount: String? = null,
     val sellAmount: String? = null,
     val minBuyAmount: String? = null,
@@ -96,19 +97,34 @@ private data class AllowanceResponse(val actual: String? = null, val spender: St
 
 private fun QuoteResponse.toDomain(sell: TokenRef, buy: TokenRef): SwapQuote {
     val tx = transaction ?: error("0x response missing transaction")
+    val target = allowanceTarget?.let(::validatedAddress)
+    val issue = issues?.allowance?.let {
+        val spender = validatedAddress(it.spender ?: error("Missing approval spender"))
+        require(target == spender) { "Inconsistent approval target" }
+        AllowanceIssue(spender)
+    }
     return SwapQuote(
         sell = sell,
         buy = buy,
         sellAmountRaw = sellAmount ?: error("0x response missing sellAmount"),
         buyAmountRaw = buyAmount ?: error("0x response missing buyAmount"),
-        minBuyAmountRaw = minBuyAmount ?: buyAmount ?: "0",
+        minBuyAmountRaw = minBuyAmount ?: error("0x response missing minBuyAmount"),
         transaction = QuoteTransaction(
-            to = tx.to ?: error("0x response missing tx.to"),
+            to = validatedAddress(tx.to ?: error("0x response missing tx.to")),
             dataHex = tx.data ?: error("0x response missing tx.data"),
-            valueWei = tx.value ?: "0",
-            gasLimit = tx.gas ?: "250000",
+            valueWei = tx.value ?: error("0x response missing tx.value"),
+            gasLimit = tx.gas ?: error("0x response missing tx.gas"),
             gasPriceWei = tx.gasPrice ?: error("0x response missing tx.gasPrice"),
         ),
-        allowanceIssue = issues?.allowance?.spender?.let { AllowanceIssue(spender = it) },
+        allowanceIssue = issue,
+        allowanceTarget = target,
     )
+}
+
+internal fun validatedAddress(raw: String): String {
+    val normalized = raw.lowercase()
+    require(normalized.length == 42 && normalized.startsWith("0x") &&
+        normalized.substring(2).all { it in '0'..'9' || it in 'a'..'f' } &&
+        normalized.substring(2).any { it != '0' }) { "Invalid address" }
+    return normalized
 }

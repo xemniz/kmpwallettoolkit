@@ -15,26 +15,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import xyz.wallet.toolkit.core.Wallet
 import xyz.wallet.toolkit.sample.nav.Navigator
 import xyz.wallet.toolkit.sample.nav.Route
 import xyz.wallet.toolkit.sample.state.LocalWalletSession
-import xyz.wallet.toolkit.sample.state.SecureWalletStorageRuntime
 import xyz.wallet.toolkit.sample.theme.WalletColors
 import xyz.wallet.toolkit.sample.ui.BackBar
 import xyz.wallet.toolkit.sample.ui.PhoneFrame
 import xyz.wallet.toolkit.sample.ui.PrimaryButton
 
-private const val GENERIC_RESTORE_ERROR =
-    "Could not restore wallet — check the phrase and try again."
-
-/**
- * Classic-A mnemonic-import screen.
- *
- * CLAUDE.md §4.1: the pasted phrase is never logged, never interpolated into
- * an exception message, and never echoed in the error surface. On failure we
- * show a fixed generic string and silently drop the caught Throwable.
- */
 @Composable
 fun ImportWalletScreen(navigator: Navigator) {
     val state = rememberImportWalletState()
@@ -61,34 +49,14 @@ fun ImportWalletScreen(navigator: Navigator) {
         PrimaryButton(
             text = "Restore",
             onClick = {
-                // Guard also enforced by `enabled`, but defense-in-depth:
-                // never read `input` unless validation has already normalized it.
-                val current = state.validation
-                if (current is ValidationResult.Valid && !state.isSubmitting) {
-                    state.isSubmitting = true
-                    val phrase = current.words.joinToString(" ")
-                    try {
-                        val wallet = Wallet.fromMnemonicWithTrustWalletCore(phrase)
-                        // Force a derivation so an invalid-but-correct-word-count
-                        // phrase surfaces here rather than on the Home screen.
-                        wallet.address(session.selectedChain)
-                        runCatching { SecureWalletStorageRuntime.get().save(phrase) }
-                        session.wallet = wallet
-                        navigator.replace(Route.Home)
-                    } catch (t: Throwable) {
-                        // CLAUDE.md §4.1: do NOT reference t.message / t.cause —
-                        // the toolkit may include the offending input in either.
-                        state.markSubmissionError()
-                        state.isSubmitting = false
-                    }
-                }
+                if (state.submit(session)) navigator.replace(Route.Home)
             },
             enabled = validation is ValidationResult.Valid && !state.isSubmitting,
         )
 
-        if (state.submissionError) {
+        state.errorMessage?.let { error ->
             Text(
-                text = GENERIC_RESTORE_ERROR,
+                text = error,
                 color = WalletColors.accent,
                 style = MaterialTheme.typography.bodyMedium,
                 textAlign = TextAlign.Center,
