@@ -27,6 +27,9 @@ kotlin {
         namespace = "xyz.wallet.toolkit.sample"
         compileSdk = 36
         minSdk = 24
+        withHostTestBuilder {
+            sourceSetTreeName = "test"
+        }
     }
 
     listOf(
@@ -78,6 +81,8 @@ kotlin {
         }
         commonTest.dependencies {
             implementation(kotlin("test"))
+            implementation(libs.kotlinx.coroutines.test)
+            implementation(libs.ktor.client.mock)
         }
         iosMain.dependencies {
             implementation(libs.ktor.client.darwin)
