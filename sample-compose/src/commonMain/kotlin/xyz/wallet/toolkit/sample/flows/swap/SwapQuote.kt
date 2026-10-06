@@ -8,6 +8,7 @@ data class SwapQuote(
     val minBuyAmountRaw: String,
     val transaction: QuoteTransaction,
     val allowanceIssue: AllowanceIssue?,
+    val allowanceTarget: String?,
 )
 
 data class QuoteTransaction(
