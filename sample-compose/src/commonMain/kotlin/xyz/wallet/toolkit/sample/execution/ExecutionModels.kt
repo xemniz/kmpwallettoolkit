@@ -138,7 +138,7 @@ enum class StepKind { Send, ResetAllowance, Approve, Swap }
 enum class StepStatus { Planned, Prepared, Pending, Confirmed, Reverted, NonceConsumedUnknownOutcome }
 
 @Serializable
-enum class OperationStatus { Executing, Monitoring, NeedsReview, StorageError, Confirmed, Reverted, UnknownOutcome, Failed }
+enum class OperationStatus { Executing, Monitoring, NeedsReview, Confirmed, Reverted, UnknownOutcome, Failed }
 
 @Serializable
 data class StepProgress(

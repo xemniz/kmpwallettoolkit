@@ -24,7 +24,6 @@ internal fun OperationStatus.displayName(): String = when (this) {
     OperationStatus.Executing -> "Submitting reviewed transactions"
     OperationStatus.Monitoring -> "Checking transaction progress"
     OperationStatus.NeedsReview -> "Fresh review required"
-    OperationStatus.StorageError -> "Storage unavailable"
     OperationStatus.Confirmed -> "Confirmed"
     OperationStatus.Reverted -> "Transaction reverted"
     OperationStatus.UnknownOutcome -> "Outcome unknown; fresh review required"

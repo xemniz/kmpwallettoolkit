@@ -23,6 +23,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import xyz.wallet.toolkit.sample.execution.ExecutionReview
+import xyz.wallet.toolkit.sample.execution.ReviewedTransaction
 import xyz.wallet.toolkit.sample.execution.StepKind
 import xyz.wallet.toolkit.sample.flows.swap.rawToAmount
 import xyz.wallet.toolkit.sample.format.EthFormat
@@ -55,7 +56,9 @@ fun ReviewAndSignSheet(
             ReviewRow("From", review.owner)
             val quote = review.swapQuote
             if (quote != null) {
+                ReviewRow("Sell asset", quote.sell.address ?: "Native ${review.chain.ticker}")
                 ReviewRow("You pay", "${rawToAmount(quote.sellAmountRaw, quote.sell.decimals, quote.sell.decimals)} ${quote.sell.symbol}")
+                ReviewRow("Buy asset", quote.buy.address ?: "Native ${review.chain.ticker}")
                 ReviewRow("You receive", "${rawToAmount(quote.buyAmountRaw, quote.buy.decimals, quote.buy.decimals)} ${quote.buy.symbol}")
                 ReviewRow("Minimum received", "${rawToAmount(quote.minBuyAmountRaw, quote.buy.decimals, quote.buy.decimals)} ${quote.buy.symbol}")
                 quote.allowanceTarget?.let { ReviewRow("Approval spender", it) }
@@ -65,17 +68,20 @@ fun ReviewAndSignSheet(
             review.steps.forEachIndexed { index, step ->
                 Text("${index + 1}. ${step.kind.displayName()}", color = WalletColors.textPrimary)
                 ReviewRow("To", step.transaction.to)
-                ReviewRow("Network value", EthFormat.formatWeiAsEth(step.transaction.valueWei, 18) + " ETH")
+                ReviewRow("Network value", EthFormat.formatWeiAsEth(step.transaction.valueWei, 18) + " ${review.chain.ticker}")
                 step.approvalAmountRaw?.let { amount ->
                     if (quote != null) ReviewRow("Allowance", "${rawToAmount(amount, quote.sell.decimals, quote.sell.decimals)} ${quote.sell.symbol}")
                 }
                 ReviewRow("Gas limit", step.transaction.gasLimit)
                 ReviewRow("Maximum gas price", step.transaction.feePerGasWei + " wei")
+                (step.transaction as? ReviewedTransaction.Type2)?.let { transaction ->
+                    ReviewRow("Maximum priority fee", transaction.value.maxPriorityFeePerGasWei + " wei")
+                }
                 val fee = EthFormat.multiplyDecimalIntegers(step.transaction.gasLimit, step.transaction.feePerGasWei)
                 totalFee = EthFormat.addWei(totalFee, fee)
-                ReviewRow("Estimated max fee", EthFormat.formatWeiAsEth(fee, 18) + " ETH")
+                ReviewRow("Estimated max fee", EthFormat.formatWeiAsEth(fee, 18) + " ${review.chain.ticker}")
             }
-            ReviewRow("Total estimated max fees", EthFormat.formatWeiAsEth(totalFee, 18) + " ETH")
+            ReviewRow("Total estimated max fees", EthFormat.formatWeiAsEth(totalFee, 18) + " ${review.chain.ticker}")
             Text("This confirmation authorizes all ${review.steps.size} disclosed transactions. Changed swap terms require a new review.", color = WalletColors.textSecondary)
             error?.let { Text(it, color = WalletColors.textSecondary) }
             HoldToSignButton(enabled = !consumed) {

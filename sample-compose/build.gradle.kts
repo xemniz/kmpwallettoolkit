@@ -37,6 +37,26 @@ kotlin {
         iosArm64(),
         iosSimulatorArm64(),
     ).forEach { iosTarget ->
+        if (!useMavenWalletToolkit) {
+            // Executable test binaries must link the native dependencies used by wallet-core.
+            val nativeRoot = project(":wallet-core").layout.buildDirectory.dir("trustwallet-core-ios")
+            val slice = if (iosTarget.name == "iosArm64") "ios-arm64" else "ios-arm64_x86_64-simulator"
+            iosTarget.binaries.all {
+                linkTaskProvider.configure {
+                    dependsOn(":wallet-core:extractTrustWalletCoreIos", ":wallet-core:extractTrustWalletCoreIosSwiftProtobuf")
+                }
+                val walletCoreRoot = nativeRoot.get().asFile.resolve("WalletCore.xcframework/$slice")
+                val swiftProtobufRoot = nativeRoot.get().asFile.resolve("WalletCoreSwiftProtobuf.xcframework/$slice")
+                linkerOpts(
+                    "-F${walletCoreRoot.absolutePath}",
+                    "-F${swiftProtobufRoot.absolutePath}",
+                    "-framework", "WalletCore",
+                    "-framework", "WalletCoreSwiftProtobuf",
+                    "-rpath", walletCoreRoot.absolutePath,
+                    "-rpath", swiftProtobufRoot.absolutePath,
+                )
+            }
+        }
         iosTarget.binaries.framework {
             baseName = "SampleCompose"
             isStatic = true
