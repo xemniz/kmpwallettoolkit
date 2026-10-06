@@ -119,7 +119,7 @@ class Bip39WordlistTest {
 
     @Test
     fun `validatePhrase does not reveal phrase content in toString`() {
-        // Acceptance §11: no word from the input phrase may appear in toString().
+        // Validation results must never render the submitted phrase.
         // Include both a wordlist token ("abandon") and a distinctive non-wordlist token
         // ("zzzsecretzzz") to catch leaks from either side.
         val phrase = "abandon zzzsecretzzz abandon abandon abandon abandon " +

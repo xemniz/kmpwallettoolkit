@@ -4,10 +4,6 @@ package xyz.wallet.toolkit.utils
  * The canonical BIP-39 English wordlist (2048 entries, lowercase, ASCII-sorted).
  *
  * Source: https://github.com/bitcoin/bips/blob/master/bip-0039/english.txt
- *
- * The wordlist is public data. Membership lookup via binary search is correct; it is NOT a
- * secret comparison (CLAUDE.md §4.3). Do not "harden" it into a constant-time linear scan —
- * that would only hurt performance without adding any security property.
  */
 internal val BIP39_ENGLISH: List<String> = listOf(
     "abandon", "ability", "able", "about", "above", "absent", "absorb", "abstract",
@@ -320,10 +316,7 @@ object Bip39Wordlist {
 /**
  * Result of [Bip39Wordlist.validatePhrase].
  *
- * CLAUDE.md §4.1 applies: the input phrase is user-supplied mnemonic material, and no subtype
- * may render phrase content in `toString()`. Every subtype has an explicit `toString()`
- * override that emits only integer positions / counts so that a future field addition cannot
- * silently leak words.
+ * Results contain positions or counts, never the submitted mnemonic words.
  */
 sealed class PhraseValidation {
     object Valid : PhraseValidation() {

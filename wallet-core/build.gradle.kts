@@ -100,6 +100,11 @@ kotlin {
         namespace = "xyz.wallet.toolkit.core"
         compileSdk = 36
         minSdk = 24
+        withDeviceTestBuilder {
+            sourceSetTreeName = "test"
+        }.configure {
+            instrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        }
     }
 
     sourceSets {
@@ -121,6 +126,12 @@ kotlin {
         }
         commonTest.dependencies {
             implementation(kotlin("test"))
+        }
+        val androidDeviceTest by getting {
+            dependencies {
+                implementation(libs.androidx.junit)
+                implementation(libs.androidx.test.runner)
+            }
         }
     }
 }

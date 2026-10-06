@@ -1,9 +1,12 @@
 package xyz.wallet.toolkit.core
 
 /**
- * Native seam for Trust Wallet Core calls. Platform actuals can be wired to JNI/cinterop.
+ * Trust Wallet Core calls implemented by Android JNI and iOS cinterop.
  */
 expect object TrustWalletCoreNativeBridge {
+    /** Keccak-256 of the complete signed EVM envelope, as used by eth_sendRawTransaction. */
+    fun evmTransactionHash(rawSignedTransaction: ByteArray): ByteArray
+
     fun createMnemonic(): String
 
     fun deriveAddress(mnemonic: String, chain: SupportedChain): String

@@ -16,6 +16,9 @@ fun ByteArray.toHexString(prefix: Boolean = true): String {
 fun String.hexToByteArray(): ByteArray {
     val normalized = removePrefix("0x")
     require(normalized.length % 2 == 0) { "Hex input must have an even length" }
+    require(normalized.all { it in '0'..'9' || it in 'a'..'f' || it in 'A'..'F' }) {
+        "Hex input must contain only hexadecimal digits"
+    }
 
     return ByteArray(normalized.length / 2) { index ->
         val chunk = normalized.substring(index * 2, index * 2 + 2)

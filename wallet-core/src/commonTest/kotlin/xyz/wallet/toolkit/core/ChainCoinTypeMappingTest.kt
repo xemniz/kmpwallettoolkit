@@ -4,18 +4,10 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/**
- * Tripwire for the Android `TrustWalletCoreNativeBridge.toCoinType()` `when` expression.
- *
- * The bridge lives in androidMain and cannot be invoked from commonTest, so this test
- * asserts at the SupportedChain level: every enum entry must appear in [expected]. When a
- * new chain is added, this test fails and the failure message points the implementer at
- * the bridge — preventing a recurrence of the spec E/F oversight that broke S1.
- */
+/** Checks that the expected CoinType inventory covers every supported chain. */
 class ChainCoinTypeMappingTest {
 
-    // Source of truth for what the Android bridge's `when` must map each chain to.
-    // Keep in sync with TrustWalletCoreNativeBridge.android.kt::toCoinType().
+    // This inventory does not execute or verify the native bridge mapping.
     private val expected: Map<SupportedChain, String> = mapOf(
         SupportedChain.Ethereum to "ETHEREUM",
         SupportedChain.Base to "ETHEREUM",
@@ -47,7 +39,7 @@ class ChainCoinTypeMappingTest {
 
     @Test
     fun expected_map_covers_all_six_current_entries() {
-        assertEquals(6, SupportedChain.entries.size, "Spec D was written for 6 chains; update this test.")
+        assertEquals(6, SupportedChain.entries.size, "Expected the six supported chains.")
         assertEquals(6, expected.size)
     }
 }

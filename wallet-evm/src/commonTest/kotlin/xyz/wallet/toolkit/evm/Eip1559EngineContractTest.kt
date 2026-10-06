@@ -10,20 +10,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
-/**
- * Per T plan §4: no direct in-schema third-party golden vector could be asserted in
- * commonTest (jvm-only execution; TWC jvm bridge is a stub). This test therefore uses
- * the determinism-pair fallback allowed by the spec:
- *
- *  - Assert the payload forwarded to the engine matches [Eip1559Transaction.toSigningPayload]
- *    byte-for-byte. Combined with `Eip1559GoldenVectorTest.goldenJsonDoesNotDrift`, this
- *    pins the input side of the signing hash.
- *  - Assert two successive signings of the same transaction produce byte-identical output
- *    (engine-captured JSON + returned signed bytes).
- *
- * A true end-to-end hex golden vector will be a follow-up Android instrumented test.
- */
-class Eip1559SigningGoldenVectorTest {
+// Verifies the WalletEngine contract; native cryptographic vectors live in wallet-core.
+class Eip1559EngineContractTest {
 
     private fun sampleTx(
         chainId: Long = 1,
@@ -57,7 +45,7 @@ class Eip1559SigningGoldenVectorTest {
     }
 
     @Test
-    fun signEip1559TransactionIsDeterministic() {
+    fun repeatedSigningPreservesPayloadAndReturnsEngineOutput() {
         val engine = CapturingEngine(returning = byteArrayOf(0x11, 0x22, 0x33))
         val wallet = Wallet.fromMnemonic("test mnemonic", engine)
         val tx = sampleTx()
@@ -122,7 +110,9 @@ private data class CapturedEip1559Call(
     val mnemonic: String,
     val chain: SupportedChain,
     val payload: ByteArray,
-)
+) {
+    override fun toString(): String = "CapturedEip1559Call(redacted)"
+}
 
 private class CapturingEngine(private val returning: ByteArray) : WalletEngine {
     val eip1559Calls = mutableListOf<CapturedEip1559Call>()
