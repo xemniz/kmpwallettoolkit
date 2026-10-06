@@ -18,7 +18,9 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -32,6 +34,11 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.koin.compose.koinInject
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
+import xyz.wallet.toolkit.sample.execution.ExecutionReview
+import xyz.wallet.toolkit.sample.execution.TransactionExecutionRepository
+import xyz.wallet.toolkit.sample.flows.send.ReviewAndSignSheet
 import xyz.wallet.toolkit.core.ChainRegistry
 import xyz.wallet.toolkit.core.SupportedChain
 import xyz.wallet.toolkit.sample.nav.Navigator
@@ -61,11 +68,33 @@ fun SwapScreen(route: Route.Swap, navigator: Navigator) {
     }
 
     val vmFactory: SwapViewModelFactory = koinInject()
-    val vm = remember(chain) { vmFactory.create(chain) }
-    LaunchedEffect(wallet) { vm.attach(wallet) }
+    val scope = rememberCoroutineScope()
+    val vm = remember(chain, wallet) { vmFactory.create(chain, wallet.address(chain), scope) }
+    DisposableEffect(vm) { onDispose { vm.dispose() } }
+    val execution: TransactionExecutionRepository = koinInject()
+    var selectedQuote by remember(vm) { mutableStateOf<AcceptedSwapQuote?>(null) }
+    var review by remember(vm) { mutableStateOf<ExecutionReview?>(null) }
+    var preparing by remember(vm) { mutableStateOf(false) }
+    var error by remember(vm) { mutableStateOf<String?>(null) }
 
     val ui by vm.state.collectAsState()
+    LaunchedEffect(vm, route.operationId) {
+        val saved = execution.operations.value.firstOrNull { it.id == route.operationId && it.owner == wallet.address(chain).lowercase() && it.chainId == chain.id }
+        saved?.swapIntent?.let { intent ->
+            vm.restoreDraft(
+                TokenRef(intent.sellSymbol, intent.sellSymbol, intent.sellAddress, intent.sellDecimals, chain, null),
+                TokenRef(intent.buySymbol, intent.buySymbol, intent.buyAddress, intent.buyDecimals, chain, null),
+                rawToAmount(intent.sellAmountRaw, intent.sellDecimals, intent.sellDecimals),
+            )
+        }
+    }
     var picker by remember { mutableStateOf<PickerSide?>(null) }
+    LaunchedEffect(ui.quote) {
+        if (selectedQuote?.let { !vm.isCurrent(it) } == true) {
+            review = null
+            selectedQuote = null
+        }
+    }
 
     PhoneFrame {
         BackBar(onBack = { navigator.pop() }, title = "Swap — ${chain.displayName}")
@@ -112,23 +141,56 @@ fun SwapScreen(route: Route.Swap, navigator: Navigator) {
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            (ui.submission as? SubmissionStatus.Error)?.let { err ->
-                Text(err.userMessage, color = WalletColors.textSecondary, fontSize = 12.sp)
-            }
-            val cta = when (ui.submission) {
-                is SubmissionStatus.Submitting -> "Submitting…"
-                else -> if (ui.sell.isNative) "Review" else "Approve & Swap"
-            }
+            error?.let { Text(it, color = WalletColors.textSecondary, fontSize = 12.sp) }
             PrimaryButton(
-                text = cta,
-                enabled = ui.quote is QuoteStatus.Value && ui.submission !is SubmissionStatus.Submitting,
+                text = if (preparing) "Preparing review…" else "Review",
+                enabled = ui.quote is QuoteStatus.Value && !preparing,
                 onClick = {
-                    vm.submit { txHash ->
-                        navigator.replace(Route.TxStatus(txHash = txHash, chainId = chain.id))
+                    val selection = vm.captureQuote() ?: return@PrimaryButton
+                    preparing = true
+                    error = null
+                    scope.launch {
+                        try {
+                            val prepared = execution.prepareSwap(chain, wallet.address(chain).lowercase(), selection.quote)
+                            if (vm.isCurrent(selection)) {
+                                selectedQuote = selection
+                                review = prepared
+                            }
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
+                        } catch (_: Exception) {
+                            error = "Could not prepare the review. Check pending operations and try again."
+                        } finally {
+                            preparing = false
+                        }
                     }
                 },
             )
         }
+    }
+
+    review?.let { prepared ->
+        ReviewAndSignSheet(
+            review = prepared,
+            error = error,
+            onDismiss = { review = null; selectedQuote = null },
+            onConfirm = {
+                val selection = selectedQuote
+                if (selection == null || !vm.isCurrent(selection) || session.wallet !== wallet) {
+                    review = null
+                    error = "Quote changed. Review again."
+                } else {
+                    try {
+                        val id = execution.start(prepared)
+                        vm.consumeQuote(selection)
+                        review = null
+                        navigator.replace(Route.Operation(id))
+                    } catch (_: Exception) {
+                        error = "Could not start. Close the review and try again."
+                    }
+                }
+            },
+        )
     }
 
     picker?.let { side ->

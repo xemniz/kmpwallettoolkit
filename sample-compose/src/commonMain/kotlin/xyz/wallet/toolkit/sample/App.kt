@@ -25,31 +25,34 @@ import xyz.wallet.toolkit.sample.nav.Navigator
 import xyz.wallet.toolkit.sample.nav.Route
 import xyz.wallet.toolkit.sample.nav.WalletNavHost
 import xyz.wallet.toolkit.sample.nav.rememberRouteBackStack
-import xyz.wallet.toolkit.sample.state.SecureWalletStorageRuntime
 import xyz.wallet.toolkit.sample.state.WalletSession
 import xyz.wallet.toolkit.sample.state.WalletSessionHolder
-import xyz.wallet.toolkit.core.Wallet
 import xyz.wallet.toolkit.sample.theme.WalletColors
 import xyz.wallet.toolkit.sample.theme.WalletTheme
 import xyz.wallet.toolkit.sample.ui.PhoneFrame
 import xyz.wallet.toolkit.sample.ui.PrimaryButton
+import org.koin.compose.koinInject
+import xyz.wallet.toolkit.sample.execution.TransactionExecutionRepository
+import xyz.wallet.toolkit.sample.execution.WalletExecutionSigner
 
 @Composable
 fun WalletSampleApp() {
     val backStack = rememberRouteBackStack(Route.Welcome)
     val navigator = remember(backStack) { Navigator(backStack) }
-    val session = remember { WalletSession() }
+    val session: WalletSession = koinInject()
+    val execution: TransactionExecutionRepository = koinInject()
     var hydrating by remember { mutableStateOf(true) }
 
-    LaunchedEffect(Unit) {
-        val stored = runCatching { SecureWalletStorageRuntime.get().load() }.getOrNull()
-        if (!stored.isNullOrEmpty()) {
-            runCatching {
-                session.wallet = Wallet.fromMnemonicWithTrustWalletCore(stored)
-                navigator.replace(Route.Home)
-            }
-        }
+    LaunchedEffect(session) {
+        session.hydrateOnce()
+        if (session.wallet != null && navigator.current == Route.Welcome) navigator.replace(Route.Home)
+        if (session.wallet == null && navigator.current !in listOf(Route.Welcome, Route.Create, Route.Import)) navigator.replace(Route.Welcome)
         hydrating = false
+    }
+    LaunchedEffect(session.wallet, session.epoch) {
+        val wallet = session.wallet
+        if (wallet == null) execution.revokeSession()
+        else execution.attachSession(WalletExecutionSigner(wallet), session.epoch)
     }
 
     WalletTheme {

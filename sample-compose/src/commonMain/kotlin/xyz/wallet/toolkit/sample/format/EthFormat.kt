@@ -33,6 +33,27 @@ object EthFormat {
     fun multiplyWeiByInt(weiDecimal: String, factor: Int): String =
         multiplyDecimalByInt(weiDecimal, factor)
 
+    fun multiplyDecimalIntegers(a: String, b: String): String {
+        require(a.isNotEmpty() && b.isNotEmpty() && a.all { it in '0'..'9' } && b.all { it in '0'..'9' }) { "Invalid quantity" }
+        val digits = IntArray(a.length + b.length)
+        for (i in a.indices.reversed()) {
+            var carry = 0
+            for (j in b.indices.reversed()) {
+                val k = i + j + 1
+                val product = (a[i] - '0') * (b[j] - '0') + digits[k] + carry
+                digits[k] = product % 10
+                carry = product / 10
+            }
+            digits[i] += carry
+        }
+        return digits.joinToString("").trimStart('0').ifEmpty { "0" }
+    }
+
+    fun addWei(a: String, b: String): String {
+        require(a.isNotEmpty() && b.isNotEmpty() && a.all { it in '0'..'9' } && b.all { it in '0'..'9' }) { "Invalid quantity" }
+        return addDecimalStrings(a, b)
+    }
+
     /** Format a non-negative decimal-integer wei string as an ETH decimal with truncation. */
     fun formatWeiAsEth(weiDecimal: String, scale: Int = DISPLAY_SCALE): String =
         formatScaledDown(weiDecimal, WEI_DECIMALS, scale)

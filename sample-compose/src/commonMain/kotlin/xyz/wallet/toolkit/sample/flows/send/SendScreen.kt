@@ -16,7 +16,9 @@ import androidx.compose.ui.unit.dp
 import xyz.wallet.toolkit.core.ChainRegistry
 import xyz.wallet.toolkit.sample.nav.Navigator
 import xyz.wallet.toolkit.sample.nav.Route
-import xyz.wallet.toolkit.sample.rpc.RpcClientFactory
+import xyz.wallet.toolkit.sample.execution.ExecutionReview
+import xyz.wallet.toolkit.sample.execution.TransactionExecutionRepository
+import org.koin.compose.koinInject
 import xyz.wallet.toolkit.sample.state.LocalWalletSession
 import xyz.wallet.toolkit.sample.theme.WalletColors
 import xyz.wallet.toolkit.sample.ui.BackBar
@@ -24,22 +26,15 @@ import xyz.wallet.toolkit.sample.ui.ChainChip
 import xyz.wallet.toolkit.sample.ui.PhoneFrame
 import xyz.wallet.toolkit.sample.ui.PrimaryButton
 
-/**
- * Send flow host. Reads the active wallet via [LocalWalletSession]. The chain
- * is pinned from the [Route.Send] parameter and NOT editable here (spec: no
- * chain switching inside Send).
- *
- * Review CTA is enabled only when all four user inputs pass inline validation
- * ([canReview]); hitting it opens the [ReviewAndSignSheet] which owns the
- * hold-to-sign gesture and invokes the supplied [SendTxAssembler].
- */
 @Composable
 fun SendScreen(route: Route.Send, navigator: Navigator) {
     val session = LocalWalletSession.current
     val wallet = session.wallet
     val chain = ChainRegistry.byId(route.chainId)
     val state = remember(route.chainId) { SendState(chainId = route.chainId) }
-    var showReview by remember { mutableStateOf(false) }
+    val execution: TransactionExecutionRepository = koinInject()
+    var review by remember(wallet, route.chainId) { mutableStateOf<ExecutionReview?>(null) }
+    var reviewError by remember { mutableStateOf<String?>(null) }
 
     PhoneFrame {
         BackBar(onBack = { navigator.pop() }, title = "Send")
@@ -94,39 +89,30 @@ fun SendScreen(route: Route.Send, navigator: Navigator) {
             PrimaryButton(
                 text = "Review",
                 enabled = canReview(state),
-                onClick = { showReview = true },
+                onClick = {
+                    try {
+                        reviewError = null
+                        review = execution.prepareSend(chain, wallet.address(chain).lowercase(), state)
+                    } catch (_: Exception) {
+                        state.submission = SubmissionStatus.Error("Could not prepare review. Check pending operations and try again.")
+                    }
+                },
             )
         }
     }
 
-    if (showReview && wallet != null && chain != null) {
-        val assembler = remember(wallet, chain, navigator) {
-            SendTxAssembler(
-                wallet = wallet,
-                rpc = RpcClientFactory.forChain(chain),
-                chain = chain,
-                navigator = navigator,
-            )
-        }
+    review?.let { prepared ->
         ReviewAndSignSheet(
-            state = state,
-            chain = chain,
-            fromAddress = wallet.address(chain).lowercase(),
-            onDismiss = { showReview = false },
-            onSign = {
-                state.submission = SubmissionStatus.Submitting
-                val result = assembler.assembleAndBroadcast(state)
-                when (result) {
-                    is SendResult.Success -> {
-                        // Navigator.replace already invoked inside the assembler.
-                        // Clear local submission so that, if we ever re-enter,
-                        // the state does not leak the prior run.
-                        state.submission = SubmissionStatus.Idle
-                        showReview = false
-                    }
-                    is SendResult.Failure -> {
-                        state.submission = SubmissionStatus.Error(result.userMessage)
-                    }
+            review = prepared,
+            error = reviewError,
+            onDismiss = { review = null },
+            onConfirm = {
+                try {
+                    val id = execution.start(prepared)
+                    review = null
+                    navigator.replace(Route.Operation(id))
+                } catch (_: Exception) {
+                    reviewError = "Could not start. Close the review and try again."
                 }
             },
         )

@@ -4,116 +4,93 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import xyz.wallet.toolkit.core.SupportedChain
+import xyz.wallet.toolkit.sample.execution.ExecutionReview
+import xyz.wallet.toolkit.sample.execution.StepKind
+import xyz.wallet.toolkit.sample.flows.swap.rawToAmount
 import xyz.wallet.toolkit.sample.format.EthFormat
 import xyz.wallet.toolkit.sample.theme.WalletColors
 import xyz.wallet.toolkit.sample.ui.MonoText
+import xyz.wallet.toolkit.sample.ui.displayName
 
-private const val HOLD_MS: Long = 1_500L
+private const val HOLD_MS = 1_500L
 
-/**
- * Review sheet with hold-to-sign. No signing payload, no signed hex, no
- * address-derivative string is emitted through logs or exception messages
- * anywhere in this composable — the display strings below are the user's
- * own inputs (recipient / amount / gas) and the truncated `fromAddress`
- * (CLAUDE.md §4.1: not key material, but kept out of logs regardless).
- *
- * `onSign` is a `suspend () -> Unit` that runs the assembler. The sheet
- * only invokes it after a sustained 1.5s press; releasing early cancels.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReviewAndSignSheet(
-    state: SendState,
-    chain: SupportedChain,
-    fromAddress: String,
+    review: ExecutionReview,
+    error: String?,
     onDismiss: () -> Unit,
-    onSign: suspend () -> Unit,
+    onConfirm: () -> Unit,
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var consumed by remember(review) { mutableStateOf(false) }
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = WalletColors.surface,
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 12.dp),
+            Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(
-                text = "Review",
-                color = WalletColors.textPrimary,
-                style = androidx.compose.material3.MaterialTheme.typography.titleMedium,
-            )
-            ReviewRow("From", truncateAddress(fromAddress))
-            ReviewRow("To", truncateAddress(state.recipientNormalized ?: state.recipientRaw))
-            ReviewRow("Amount", "${state.amountEth} ETH")
-            ReviewRow("Max fee", "${state.maxFeeGwei} gwei")
-            ReviewRow("Priority", "${state.maxPriorityGwei} gwei")
-            ReviewRow("Network", chain.displayName)
-            ReviewRow("Est. max fee", estMaxFeeEth(state.maxFeeGwei) + " ETH")
-
-            when (val s = state.submission) {
-                is SubmissionStatus.Error -> Text(
-                    text = s.userMessage,
-                    color = WalletColors.textSecondary,
-                    style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
-                )
-                else -> { /* Idle / Submitting have no inline text here */ }
+            Text("Review", color = WalletColors.textPrimary)
+            ReviewRow("Network", review.chain.displayName)
+            ReviewRow("From", review.owner)
+            val quote = review.swapQuote
+            if (quote != null) {
+                ReviewRow("You pay", "${rawToAmount(quote.sellAmountRaw, quote.sell.decimals, quote.sell.decimals)} ${quote.sell.symbol}")
+                ReviewRow("You receive", "${rawToAmount(quote.buyAmountRaw, quote.buy.decimals, quote.buy.decimals)} ${quote.buy.symbol}")
+                ReviewRow("Minimum received", "${rawToAmount(quote.minBuyAmountRaw, quote.buy.decimals, quote.buy.decimals)} ${quote.buy.symbol}")
+                quote.allowanceTarget?.let { ReviewRow("Approval spender", it) }
+                if (review.steps.none { it.kind == StepKind.Approve }) Text("No approval needed", color = WalletColors.textSecondary)
             }
-
-            HoldToSignButton(
-                enabled = state.submission != SubmissionStatus.Submitting,
-                onSign = onSign,
-            )
+            var totalFee = "0"
+            review.steps.forEachIndexed { index, step ->
+                Text("${index + 1}. ${step.kind.displayName()}", color = WalletColors.textPrimary)
+                ReviewRow("To", step.transaction.to)
+                ReviewRow("Network value", EthFormat.formatWeiAsEth(step.transaction.valueWei, 18) + " ETH")
+                step.approvalAmountRaw?.let { amount ->
+                    if (quote != null) ReviewRow("Allowance", "${rawToAmount(amount, quote.sell.decimals, quote.sell.decimals)} ${quote.sell.symbol}")
+                }
+                ReviewRow("Gas limit", step.transaction.gasLimit)
+                ReviewRow("Maximum gas price", step.transaction.feePerGasWei + " wei")
+                val fee = EthFormat.multiplyDecimalIntegers(step.transaction.gasLimit, step.transaction.feePerGasWei)
+                totalFee = EthFormat.addWei(totalFee, fee)
+                ReviewRow("Estimated max fee", EthFormat.formatWeiAsEth(fee, 18) + " ETH")
+            }
+            ReviewRow("Total estimated max fees", EthFormat.formatWeiAsEth(totalFee, 18) + " ETH")
+            Text("This confirmation authorizes all ${review.steps.size} disclosed transactions. Changed swap terms require a new review.", color = WalletColors.textSecondary)
+            error?.let { Text(it, color = WalletColors.textSecondary) }
+            HoldToSignButton(enabled = !consumed) {
+                consumed = true
+                onConfirm()
+            }
         }
     }
 }
 
 @Composable
 private fun ReviewRow(label: String, value: String) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-    ) {
-        Text(
-            text = label,
-            color = WalletColors.textSecondary,
-            style = androidx.compose.material3.MaterialTheme.typography.bodyMedium,
-        )
-        MonoText(text = value)
+    Column {
+        Text(label, color = WalletColors.textSecondary)
+        MonoText(value)
     }
 }
 
@@ -194,20 +171,11 @@ private fun HoldToSignButton(
     }
 }
 
-internal fun truncateAddress(addr: String): String {
-    if (addr.length <= 12) return addr
-    return addr.take(6) + "…" + addr.takeLast(4)
-}
+internal fun truncateAddress(addr: String): String =
+    if (addr.length <= 12) addr else addr.take(6) + "…" + addr.takeLast(4)
 
-/**
- * Pure presentation: estimates `21000 * maxFeePerGas` in ETH. Never fed back
- * into signing. Returns "—" on malformed input rather than throwing.
- */
-internal fun estMaxFeeEth(maxFeeGwei: String): String {
-    return try {
-        val feeWei = EthFormat.multiplyWeiByInt(EthFormat.gweiToWei(maxFeeGwei), 21_000)
-        EthFormat.formatWeiAsEth(feeWei, scale = 8)
-    } catch (_: IllegalArgumentException) {
-        "—"
-    }
+internal fun estMaxFeeEth(maxFeeGwei: String): String = try {
+    EthFormat.formatWeiAsEth(EthFormat.multiplyWeiByInt(EthFormat.gweiToWei(maxFeeGwei), 21_000), 18)
+} catch (_: IllegalArgumentException) {
+    "—"
 }

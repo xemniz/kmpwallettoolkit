@@ -9,6 +9,7 @@ import xyz.wallet.toolkit.sample.flows.import.ImportWalletScreen
 import xyz.wallet.toolkit.sample.flows.send.SendScreen
 import xyz.wallet.toolkit.sample.flows.swap.SwapScreen
 import xyz.wallet.toolkit.sample.flows.tx.TxStatusScreen
+import xyz.wallet.toolkit.sample.flows.tx.OperationScreen
 
 @Composable
 actual fun WalletNavHost(
@@ -27,6 +28,7 @@ actual fun WalletNavHost(
         is Route.Home -> HomeScreen(navigator)
         is Route.Send -> SendScreen(route, navigator)
         is Route.Swap -> SwapScreen(route, navigator)
+        is Route.Operation -> OperationScreen(route, navigator)
         is Route.TxStatus -> TxStatusScreen(route, navigator)
     }
 }
