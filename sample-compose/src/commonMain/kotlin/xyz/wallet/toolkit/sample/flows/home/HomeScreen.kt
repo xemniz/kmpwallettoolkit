@@ -115,9 +115,10 @@ fun HomeScreen(navigator: Navigator, vm: HomeViewModel = koinInject()) {
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 TopBar(
-                    address = wallet.address(SupportedChain.Ethereum).lowercase(),
+                    address = wallet.address(selectedChain).lowercase(),
                     chain = selectedChain,
                     onChainClick = { showChainPicker = true },
+                    onAddressClick = { showReceive = true },
                 )
 
                 Spacer(Modifier.height(8.dp))
@@ -156,14 +157,21 @@ fun HomeScreen(navigator: Navigator, vm: HomeViewModel = koinInject()) {
         }
     }
 
-    if (showReceive) {
+    if (showReceive && wallet != null) {
+        val receiveChain = homeChains.firstOrNull { it.id == ui.selectedChainId }
+            ?: SupportedChain.Ethereum
         AlertDialog(
             onDismissRequest = { showReceive = false },
             confirmButton = {
                 TextButton(onClick = { showReceive = false }) { Text("OK") }
             },
             title = { Text("Receive") },
-            text = { Text("Coming soon") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("Network: ${receiveChain.displayName}")
+                    AddressHeader(address = wallet.address(receiveChain))
+                }
+            },
         )
     }
 
@@ -229,13 +237,14 @@ private fun TopBar(
     address: String,
     chain: SupportedChain,
     onChainClick: () -> Unit,
+    onAddressClick: () -> Unit,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column {
+        Column(modifier = Modifier.clickable(onClick = onAddressClick)) {
             Text(
                 text = "Main wallet",
                 color = WalletColors.textPrimary,
@@ -243,6 +252,7 @@ private fun TopBar(
                 fontSize = 13.sp,
             )
             MonoText(text = shortAddr(address))
+            Text("View address", color = WalletColors.textSecondary, fontSize = 11.sp)
         }
         Box(
             modifier = Modifier
