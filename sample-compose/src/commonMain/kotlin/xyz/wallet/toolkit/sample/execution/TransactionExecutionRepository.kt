@@ -290,23 +290,7 @@ class TransactionExecutionRepository(
         while (true) {
             requireGeneration(expectedGeneration)
             val step = records.getValue(id).steps[index]
-            val receipt = try {
-                rpc.receipt(step.hash!!)
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (_: Exception) {
-                requireGeneration(expectedGeneration)
-                updateStatus(id, OperationStatus.Monitoring, "Connection interrupted. Retrying transaction status.")
-                null
-            }
-            requireGeneration(expectedGeneration)
-            if (receipt != null && receipt.hash.equals(step.hash, ignoreCase = true)) {
-                val status = if (receipt.succeeded) StepStatus.Confirmed else StepStatus.Reverted
-                updateStep(id, index, status, step.nonce, step.hash)
-                persist()
-                publish()
-                return status
-            }
+            readReceiptStatus(id, index, rpc, expectedGeneration)?.let { return it }
             val canonicalNonce = try {
                 parseNonceHex(rpc.nonce(records.getValue(id).owner, "latest"))
             } catch (cancelled: CancellationException) {
@@ -316,6 +300,8 @@ class TransactionExecutionRepository(
             }
             requireGeneration(expectedGeneration)
             if (canonicalNonce != null && canonicalNonce > step.nonce!!) {
+                // Inclusion can happen between the receipt and nonce requests.
+                readReceiptStatus(id, index, rpc, expectedGeneration)?.let { return it }
                 updateStep(id, index, StepStatus.NonceConsumedUnknownOutcome, step.nonce, step.hash)
                 persist()
                 publish()
@@ -324,6 +310,26 @@ class TransactionExecutionRepository(
             delay(backoff)
             backoff = (backoff * 2).coerceAtMost(15_000L)
         }
+    }
+
+    private suspend fun readReceiptStatus(id: Long, index: Int, rpc: ExecutionRpc, expectedGeneration: Long): StepStatus? {
+        val step = records.getValue(id).steps[index]
+        val receipt = try {
+            rpc.receipt(step.hash!!)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            requireGeneration(expectedGeneration)
+            updateStatus(id, OperationStatus.Monitoring, "Connection interrupted. Retrying transaction status.")
+            null
+        }
+        requireGeneration(expectedGeneration)
+        if (receipt == null || !receipt.hash.equals(step.hash, ignoreCase = true)) return null
+        val status = if (receipt.succeeded) StepStatus.Confirmed else StepStatus.Reverted
+        updateStep(id, index, status, step.nonce, step.hash)
+        persist()
+        publish()
+        return status
     }
 
     private fun monitorRestored() {

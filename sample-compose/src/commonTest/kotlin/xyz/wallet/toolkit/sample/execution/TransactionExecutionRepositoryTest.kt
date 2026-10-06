@@ -337,6 +337,60 @@ class TransactionExecutionRepositoryTest {
     }
 
     @Test
+    fun aReceiptAppearingWhileTheNonceAdvancesDeterminesTheOutcome() = runTest {
+        for (succeeded in listOf(true, false)) {
+            val rpc = FakeExecutionRpc().apply {
+                latestNonce = "0x8"
+                onLatestNonce = { receipt = ExecutionReceipt(HASH, succeeded) }
+            }
+            val wallet = FakeExecutionWallet()
+            val repository = repository(MemoryJournal(), rpc, wallet)
+            repository.start(repository.sendReview())
+            runCurrent()
+            val operation = repository.operations.value.single()
+            assertEquals(if (succeeded) OperationStatus.Confirmed else OperationStatus.Reverted, operation.status)
+            assertEquals(if (succeeded) StepStatus.Confirmed else StepStatus.Reverted, operation.steps.single().status)
+            assertEquals(2, rpc.receiptCalls)
+            assertEquals(listOf(7L), wallet.signedNonces)
+            assertEquals(1, rpc.broadcasts.size)
+        }
+    }
+
+    @Test
+    fun aReceiptForAnotherHashCannotResolveTheConsumedNonce() = runTest {
+        val rpc = FakeExecutionRpc().apply {
+            latestNonce = "0x8"
+            onLatestNonce = { receipt = ExecutionReceipt(SECOND_HASH, succeeded = true) }
+        }
+        val repository = repository(MemoryJournal(), rpc, FakeExecutionWallet())
+        repository.start(repository.sendReview())
+        runCurrent()
+        assertEquals(OperationStatus.UnknownOutcome, repository.operations.value.single().status)
+        assertEquals(StepStatus.NonceConsumedUnknownOutcome, repository.operations.value.single().steps.single().status)
+        assertEquals(HASH, repository.operations.value.single().steps.single().hash)
+        assertEquals(2, rpc.receiptCalls)
+        assertEquals(1, rpc.broadcasts.size)
+    }
+
+    @Test
+    fun signOutDuringTheReceiptRecheckRetainsTheUnresolvedIdentity() = runTest {
+        val journal = MemoryJournal()
+        val rpc = FakeExecutionRpc().apply { latestNonce = "0x8" }
+        val repository = repository(journal, rpc, FakeExecutionWallet())
+        rpc.onLatestNonce = {
+            rpc.receipt = ExecutionReceipt(HASH, succeeded = true)
+            rpc.onReceipt = { repository.revokeSession() }
+        }
+        repository.start(repository.sendReview())
+        runCurrent()
+        assertTrue(repository.operations.value.isEmpty())
+        val restored = repository(journal, FakeExecutionRpc(), FakeExecutionWallet())
+        assertEquals(StepStatus.Pending, restored.operations.value.single().steps.single().status)
+        assertEquals(HASH, restored.operations.value.single().steps.single().hash)
+        assertEquals(1, rpc.broadcasts.size)
+    }
+
+    @Test
     fun aConsumedNonceReleasesTheLockWithoutClaimingSuccessOrFailure() = runTest {
         val rpc = FakeExecutionRpc().apply { latestNonce = "0x8" }
         val repository = repository(MemoryJournal(), rpc, FakeExecutionWallet())
@@ -637,6 +691,7 @@ private class FakeExecutionRpc : ExecutionRpc {
     var allowance = "0"
     var onReceipt: (() -> Unit)? = null
     var onPendingNonce: (() -> Unit)? = null
+    var onLatestNonce: (() -> Unit)? = null
     var onBroadcast: (() -> Unit)? = null
     var broadcastThrows = false
     var receiptThrows = false
@@ -646,6 +701,7 @@ private class FakeExecutionRpc : ExecutionRpc {
     val broadcasts = mutableListOf<String>()
     override suspend fun nonce(owner: String, blockTag: String): String {
         if (blockTag == "pending") onPendingNonce?.invoke()
+        else onLatestNonce?.invoke()
         return if (blockTag == "pending") nextNonce else latestNonce
     }
     override suspend fun broadcast(rawSignedTransaction: String): String {

@@ -3,9 +3,11 @@ package xyz.wallet.toolkit.sample.flows.send
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
@@ -14,8 +16,10 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
@@ -113,7 +117,9 @@ private fun HoldToSignButton(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(64.dp)
+            .heightIn(min = 64.dp)
+            .clip(RoundedCornerShape(32.dp))
+            .background(WalletColors.accent)
             .pointerInput(enabled) {
                 if (!enabled) return@pointerInput
                 detectTapGestures(
@@ -141,35 +147,41 @@ private fun HoldToSignButton(
                         }
                     },
                 )
-            },
+            }
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Canvas(modifier = Modifier.size(56.dp)) {
-            val stroke = 4.dp.toPx()
-            drawArc(
-                color = WalletColors.outline.copy(alpha = 0.4f),
-                startAngle = -90f,
-                sweepAngle = 360f,
-                useCenter = false,
-                topLeft = Offset(stroke / 2, stroke / 2),
-                size = Size(size.width - stroke, size.height - stroke),
-                style = Stroke(width = stroke),
-            )
-            drawArc(
-                color = WalletColors.accent,
-                startAngle = -90f,
-                sweepAngle = 360f * progress.value,
-                useCenter = false,
-                topLeft = Offset(stroke / 2, stroke / 2),
-                size = Size(size.width - stroke, size.height - stroke),
-                style = Stroke(width = stroke),
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Canvas(modifier = Modifier.size(28.dp)) {
+                val stroke = 3.dp.toPx()
+                drawArc(
+                    color = Color.White.copy(alpha = 0.3f),
+                    startAngle = -90f,
+                    sweepAngle = 360f,
+                    useCenter = false,
+                    topLeft = Offset(stroke / 2, stroke / 2),
+                    size = Size(size.width - stroke, size.height - stroke),
+                    style = Stroke(width = stroke),
+                )
+                drawArc(
+                    color = Color.White,
+                    startAngle = -90f,
+                    sweepAngle = 360f * progress.value,
+                    useCenter = false,
+                    topLeft = Offset(stroke / 2, stroke / 2),
+                    size = Size(size.width - stroke, size.height - stroke),
+                    style = Stroke(width = stroke),
+                )
+            }
+            Text(
+                text = if (signing) "Signing…" else "Hold to sign",
+                color = Color.White,
+                style = androidx.compose.material3.MaterialTheme.typography.labelLarge,
             )
         }
-        Text(
-            text = if (signing) "Signing…" else "Hold to sign",
-            color = WalletColors.textPrimary,
-            style = androidx.compose.material3.MaterialTheme.typography.labelLarge,
-        )
     }
 
     LaunchedEffect(enabled) {

@@ -17,7 +17,7 @@ internal fun StepStatus.displayName(): String = when (this) {
     StepStatus.Pending -> "Waiting for confirmation"
     StepStatus.Confirmed -> "Confirmed"
     StepStatus.Reverted -> "Reverted"
-    StepStatus.NonceConsumedUnknownOutcome -> "Nonce consumed; outcome unknown"
+    StepStatus.NonceConsumedUnknownOutcome -> "Confirmation unavailable"
 }
 
 internal fun OperationStatus.displayName(): String = when (this) {
@@ -26,6 +26,6 @@ internal fun OperationStatus.displayName(): String = when (this) {
     OperationStatus.NeedsReview -> "Fresh review required"
     OperationStatus.Confirmed -> "Confirmed"
     OperationStatus.Reverted -> "Transaction reverted"
-    OperationStatus.UnknownOutcome -> "Outcome unknown; fresh review required"
+    OperationStatus.UnknownOutcome -> "Confirmation unavailable"
     OperationStatus.Failed -> "Submission stopped"
 }

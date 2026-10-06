@@ -45,6 +45,7 @@ import xyz.wallet.toolkit.sample.portfolio.formatUsd
 import xyz.wallet.toolkit.sample.state.LocalWalletSession
 import xyz.wallet.toolkit.sample.execution.TransactionExecutionRepository
 import xyz.wallet.toolkit.sample.execution.OperationStatus
+import xyz.wallet.toolkit.sample.execution.OperationKind
 import xyz.wallet.toolkit.core.ChainRegistry
 import xyz.wallet.toolkit.sample.ui.displayName
 import xyz.wallet.toolkit.sample.theme.WalletColors
@@ -87,22 +88,22 @@ fun HomeScreen(navigator: Navigator, vm: HomeViewModel = koinInject()) {
         val selectedChain = homeChains.firstOrNull { it.id == ui.selectedChainId }
             ?: SupportedChain.Ethereum
         val portfolio = ui.portfolioFor(ui.selectedChainId)
-        val unfinished = operations.filter { operation ->
+        val walletOperations = operations.filter { operation ->
             val chain = ChainRegistry.byId(operation.chainId)
-            chain != null && operation.owner == wallet.address(chain).lowercase() &&
-                operation.status !in setOf(OperationStatus.Confirmed, OperationStatus.Reverted)
+            chain != null && operation.owner == wallet.address(chain).lowercase()
         }
-        val busy = unfinished.any { it.chainId == ui.selectedChainId && it.status in setOf(OperationStatus.Executing, OperationStatus.Monitoring) }
+        val latestId = walletOperations.maxOfOrNull { it.id }
+        val visibleOperations = walletOperations.filter {
+            it.id == latestId || it.status in setOf(
+                OperationStatus.Executing, OperationStatus.Monitoring,
+                OperationStatus.NeedsReview, OperationStatus.UnknownOutcome,
+            )
+        }.sortedByDescending { it.id }
+        val busy = walletOperations.any { it.chainId == ui.selectedChainId && it.status in setOf(OperationStatus.Executing, OperationStatus.Monitoring) }
         if (storageError) {
             Text("Saved transaction progress is unavailable. New submissions are paused.", color = WalletColors.textSecondary)
             TextButton(onClick = { execution.retryStorage() }) { Text("Retry storage") }
         }
-        unfinished.forEach { operation ->
-            TextButton(onClick = { navigator.push(Route.Operation(operation.id)) }) {
-                Text("${ChainRegistry.byId(operation.chainId)?.displayName}: ${operation.status.displayName()}")
-            }
-        }
-
         PullToRefreshBox(
             isRefreshing = portfolio is PortfolioState.Loading,
             onRefresh = { vm.refresh(wallet, selectedChain) },
@@ -136,6 +137,34 @@ fun HomeScreen(navigator: Navigator, vm: HomeViewModel = koinInject()) {
                 )
 
                 Spacer(Modifier.height(20.dp))
+
+                if (visibleOperations.isNotEmpty()) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        visibleOperations.forEach { operation ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(WalletColors.surface)
+                                    .border(1.dp, WalletColors.outline, RoundedCornerShape(12.dp))
+                                    .clickable { navigator.push(Route.Operation(operation.id)) }
+                                    .padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            ) {
+                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    val kind = if (operation.kind == OperationKind.Send) "Send" else "Swap"
+                                    Text("$kind · ${ChainRegistry.byId(operation.chainId)?.displayName}", color = WalletColors.textPrimary)
+                                    Text(operation.status.displayName(), color = WalletColors.textSecondary, fontSize = 12.sp)
+                                }
+                                Text("Details ›", color = WalletColors.accent, fontSize = 12.sp)
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(16.dp))
+                }
 
                 AssetsHeader(count = (portfolio as? PortfolioState.Value)?.snapshot?.tokens?.size)
 
